@@ -1,4 +1,5 @@
-from pushkind_crawlers.db import Crawler
+import datetime as dt
+
 from sqlalchemy import Column, create_engine, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.types import TIMESTAMP
@@ -10,6 +11,7 @@ def turn_off_processing(db_url: str, crawler_id: str):
         stmt = select(Crawler).where(Crawler.selector == crawler_id)
         crawler = session.scalars(stmt).one()
         crawler.processing = False
+        crawler.updated_at = dt.datetime.now()  # type: ignore
         session.commit()
 
 
