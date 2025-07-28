@@ -3,6 +3,8 @@ import logging
 
 import zmq
 import zmq.asyncio
+from dotenv import load_dotenv
+
 from pushkind_crawlers.crawler.protocols import Category, Product
 from pushkind_crawlers.crawler.stores.tea101 import parse_101tea
 
@@ -27,7 +29,7 @@ def log_task_exception(task: asyncio.Task):
         log.exception("Exception in crawler task: %s", e)
 
 
-async def consumer():
+async def consumer(zmq_address: str):
 
     async def handle_message(crawler_id: str):
         try:
@@ -43,7 +45,7 @@ async def consumer():
             running_crawlers.discard(crawler_id)
 
     socket = ctx.socket(zmq.PULL)
-    socket.bind("tcp://0.0.0.0:5555")
+    socket.bind(zmq_address)
     log.info("Waiting for messages...")
     while True:
         crawler_id = await socket.recv()
@@ -57,7 +59,9 @@ async def consumer():
 
 
 def main():
-    asyncio.run(consumer())
+    load_dotenv()
+    zmq_address = os.getenv("ZMQ_ADDRESS") or "tcp://0.0.0.0:5555"
+    asyncio.run(consumer(zmq_address))
 
 
 if __name__ == "__main__":
