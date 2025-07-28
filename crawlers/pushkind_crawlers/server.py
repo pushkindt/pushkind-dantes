@@ -3,8 +3,8 @@ import logging
 
 import zmq
 import zmq.asyncio
-from pushkind_dantes.crawler.protocols import Category, Product
-from pushkind_dantes.crawler.stores.tea101 import parse_101tea
+from pushkind_crawlers.crawler.protocols import Category, Product
+from pushkind_crawlers.crawler.stores.tea101 import parse_101tea
 
 ctx = zmq.asyncio.Context()
 log = logging.getLogger(__name__)

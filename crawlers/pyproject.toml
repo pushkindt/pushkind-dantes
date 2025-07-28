@@ -1,5 +1,5 @@
 [project]
-name = "pushkind-dantes"
+name = "pushkind-crawlers"
 version = "0.1.0"
 description = ""
 authors = [
@@ -8,11 +8,11 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "requests (>=2.32.3,<3.0.0)",
-    "pydantic (>=2.11.5,<3.0.0)",
+    "requests (>=2.32.4,<3.0.0)",
+    "pydantic (>=2.11.7,<3.0.0)",
     "beautifulsoup4 (>=4.13.4,<5.0.0)",
     "zmq (>=0.0.0,<0.0.1)",
-    "aiohttp (>=3.12.0,<4.0.0)",
+    "aiohttp (>=3.12.14,<4.0.0)",
     "sqlalchemy (>=2.0.41,<3.0.0)",
 ]
 
@@ -23,7 +23,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.1.1"
-notebook = "^7.4.2"
+notebook = "^7.4.4"
 
 [tool.poetry.scripts]
-server = "pushkind_dantes.server:main"
+server = "pushkind_crawlers.server:main"
