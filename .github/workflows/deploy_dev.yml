@@ -1,7 +1,7 @@
 name: Deploy development
 
 on:
-  pull_request:
+  push:
     branches: [ main ]
 
 env:
@@ -57,7 +57,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: pushkind-dantes
-          path: ./target/release/pushkind-dantes
+          path: ./target/release/
       - uses: actions/download-artifact@v4
         with:
           name: pushkind-crawlers
@@ -71,7 +71,7 @@ jobs:
           if_key_exists: fail # replace / ignore / fail; optional (defaults to fail)
       - name: Deploy
         run: |
-          scp ./target/release/pushkind-dantes/pushkind-dantes cicd@dantes.pushkind.com:/var/www9/html/
+          scp ./target/release/pushkind-dantes cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./assets/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./templates/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./migrations/ cicd@dantes.pushkind.com:/var/www9/html/
