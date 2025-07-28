@@ -13,7 +13,7 @@ use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::logout;
 
 use pushkind_dantes::models::config::ServerConfig;
-use pushkind_dantes::routes::main::{index, not_assigned};
+use pushkind_dantes::routes::main::{index, not_assigned, process_crawler};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -78,6 +78,7 @@ async fn main() -> std::io::Result<()> {
                 web::scope("")
                     .wrap(RedirectUnauthorized)
                     .service(index)
+                    .service(process_crawler)
                     .service(logout),
             )
             .app_data(web::Data::new(pool.clone()))
