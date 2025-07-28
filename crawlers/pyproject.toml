@@ -26,4 +26,4 @@ jupyter = "^1.1.1"
 notebook = "^7.4.4"
 
 [tool.poetry.scripts]
-server = "pushkind_crawlers.server:main"
+server = "pushkind_crawlers.__main__:main"
