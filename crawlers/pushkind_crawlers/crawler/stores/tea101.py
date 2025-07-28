@@ -1,8 +1,8 @@
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
-from pushkind_dantes.crawler.http import HTTPGetAIOHTTP
-from pushkind_dantes.crawler.protocols import Category, HTTPGet, Product
+from pushkind_crawlers.crawler.http import HTTPGetAIOHTTP
+from pushkind_crawlers.crawler.protocols import Category, HTTPGet, Product
 
 
 class WebstoreParser101TeaRu:

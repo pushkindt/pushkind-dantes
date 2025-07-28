@@ -1,0 +1,89 @@
+name: Deploy development
+
+# on:
+#   push:
+#     branches: [ main ]
+on:
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pushkind-dantes
+          path: ./target/release/
+  build-python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./crawlers
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install poetry
+        uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: '2.3.1'
+      - name: Setup a local virtual environment (if no poetry.toml file)
+        run: |
+          poetry config virtualenvs.create true --local
+          poetry config virtualenvs.in-project true --local
+      - uses: actions/cache@v3
+        name: Define a cache for the virtual environment based on the dependencies lock file
+        with:
+          path: ./.venv
+          key: venv-${{ hashFiles('poetry.lock') }}
+      - name: Install the project dependencies
+        run: poetry install
+      - name: Build Python package
+        run: poetry build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pushkind-crawlers
+          path: ./dist/
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v4
+        with:
+          name: pushkind-dantes
+          path: ./target/release/
+      - uses: actions/download-artifact@v4
+        with:
+          name: pushkind-crawlers
+          path: ./dist/
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.CICD_PRIVATE_KEY }}
+          name: id_rsa # optional
+          known_hosts: ${{ secrets.CICD_KNOWN_HOSTS }}
+          if_key_exists: fail # replace / ignore / fail; optional (defaults to fail)
+      - name: Deploy
+        run: |
+          scp ./target/release/pushkind-dantes cicd@users.pushkind.com:/var/www9/html/
+          scp -r ./assets/ cicd@users.pushkind.com:/var/www9/html/
+          scp -r ./templates/ cicd@users.pushkind.com:/var/www9/html/
+          scp -r ./migrations/ cicd@users.pushkind.com:/var/www9/html/
+          scp -r ./dist/ cicd@users.pushkind.com:/var/www9/html/
+          ssh cicd@users.pushkind.com "cd /var/www9/html/ && /home/cicd/.cargo/bin/diesel migration run"

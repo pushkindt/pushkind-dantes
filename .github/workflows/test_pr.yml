@@ -2,7 +2,7 @@ name: Test and lint PRs
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [ ]
 
 env:
   CARGO_TERM_COLOR: always
