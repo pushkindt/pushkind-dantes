@@ -33,7 +33,7 @@
                 </div>
                 <div class="col overflow-hidden">
                     <form method="POST" action="/process/{{crawler.id}}">
-                        <a href="/" class="btn btn-sm btn-primary">Товары</a>
+                        <a href="/assets/{{crawler.selector}}.csv" class="btn btn-sm btn-primary">Товары</a>
                         {% if not crawler.processing %}
                             <button type="submit" class="btn btn-sm btn-success">
                                 Обработка
