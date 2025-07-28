@@ -22,7 +22,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: pushkind-dantes
-          path: ./target/release/
+          path: ./target/release/pushkind-dantes
   build-python:
     runs-on: ubuntu-latest
     defaults:
@@ -71,9 +71,9 @@ jobs:
           if_key_exists: fail # replace / ignore / fail; optional (defaults to fail)
       - name: Deploy
         run: |
-          scp ./target/release/pushkind-dantes cicd@users.pushkind.com:/var/www9/html/
-          scp -r ./assets/ cicd@users.pushkind.com:/var/www9/html/
-          scp -r ./templates/ cicd@users.pushkind.com:/var/www9/html/
-          scp -r ./migrations/ cicd@users.pushkind.com:/var/www9/html/
-          scp -r ./dist/ cicd@users.pushkind.com:/var/www9/html/
-          ssh cicd@users.pushkind.com "cd /var/www9/html/ && /home/cicd/.cargo/bin/diesel migration run"
+          scp ./target/release/pushkind-dantes cicd@dantes.pushkind.com:/var/www9/html/
+          scp -r ./assets/ cicd@dantes.pushkind.com:/var/www9/html/
+          scp -r ./templates/ cicd@dantes.pushkind.com:/var/www9/html/
+          scp -r ./migrations/ cicd@dantes.pushkind.com:/var/www9/html/
+          scp -r ./dist/ cicd@dantes.pushkind.com:/var/www9/html/
+          ssh cicd@dantes.pushkind.com "cd /var/www9/html/ && /home/cicd/.cargo/bin/diesel migration run"
