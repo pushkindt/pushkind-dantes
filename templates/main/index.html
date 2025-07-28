@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    {% include 'components/navigation.html' %}
+
+{% if crawlers %}
+    <div class="container mb-1">
+        <div class="row">
+            <div class="col">
+                <input type="text" class="form-control" placeholder="Фильтр" id="filter">
+            </div>
+        </div>
+    </div>
+    <div class="container border bg-white" id="items">
+        <div class="row mb-3 fw-bold">
+            <div class="col overflow-hidden">
+                Название
+            </div>
+            <div class="col overflow-hidden">
+                Дата последнего сканирования
+            </div>
+            <div class="col overflow-hidden">
+                Обработка
+            </div>
+        </div>
+        {% for crawler in crawlers %}
+            <div class="row mb-3 border-bottom">
+                <div class="col overflow-hidden">
+                    <a href="{{crawler.url}}">{{crawler.name}}</a>
+                </div>
+                <div class="col overflow-hidden">
+                    {{crawler.updated_at | date(format="%Y-%m-%d %H:%M")}}
+                </div>
+                <div class="col overflow-hidden">
+                    <form method="POST" action="/process/{{crawler.id}}">
+                        <a href="/" class="btn btn-sm btn-primary">Товары</a>
+                        {% if not crawler.processing %}
+                            <button type="submit" class="btn btn-sm btn-success">
+                                Обработка
+                            </button>
+                        {% else %}
+                            <button type="button" disabled class="btn btn-sm btn-secondary">
+                                <i class="bi bi-arrow-clockwise"></i>
+                            </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <div class="alert alert-danger" role="alert">
+                    Ни один веб-парсер не зарегистрирован.
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}
