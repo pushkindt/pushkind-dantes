@@ -1,8 +1,5 @@
 name: Deploy development
 
-# on:
-#   push:
-#     branches: [ main ]
 on:
   pull_request:
     branches: [ main ]
@@ -74,7 +71,7 @@ jobs:
           if_key_exists: fail # replace / ignore / fail; optional (defaults to fail)
       - name: Deploy
         run: |
-          scp ./target/release/pushkind-dantes cicd@dantes.pushkind.com:/var/www9/html/
+          scp ./target/release/pushkind-dantes/pushkind-dantes cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./assets/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./templates/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./migrations/ cicd@dantes.pushkind.com:/var/www9/html/
