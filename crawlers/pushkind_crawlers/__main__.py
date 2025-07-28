@@ -5,15 +5,19 @@ import os
 import zmq
 import zmq.asyncio
 from dotenv import load_dotenv
-
 from pushkind_crawlers.crawler.protocols import Category, Product
 from pushkind_crawlers.crawler.stores.tea101 import parse_101tea
+from pushkind_crawlers.db import turn_off_processing
 
 ctx = zmq.asyncio.Context()
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 running_crawlers: set[str] = set()
+
+crawlers_map = {
+    "101tea": parse_101tea,
+}
 
 
 def products_to_csv(all_products: list[tuple[Category, list[Product]]], file_name: str):
@@ -30,14 +34,15 @@ def log_task_exception(task: asyncio.Task):
         log.exception("Exception in crawler task: %s", e)
 
 
-async def consumer(zmq_address: str):
+async def consumer(zmq_address: str, db_url: str):
 
     async def handle_message(crawler_id: str):
         try:
-            if crawler_id == "101tea":
+            if crawler_id in crawlers_map:
                 log.info("Handling: %s", crawler_id)
-                products = await parse_101tea()
+                products = await crawlers_map[crawler_id]()
                 products_to_csv(products, f"assets/{crawler_id}.csv")
+                turn_off_processing(db_url, crawler_id)
                 log.info("Done processing: %s → %d products", crawler_id, len(products))
             else:
                 log.error("Unknown crawler: %s", crawler_id)
@@ -61,8 +66,12 @@ async def consumer(zmq_address: str):
 
 def main():
     load_dotenv()
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise ValueError("DATABASE_URL not set")
+    db_url = f"sqlite:///{db_url}"
     zmq_address = os.getenv("ZMQ_ADDRESS") or "tcp://0.0.0.0:5555"
-    asyncio.run(consumer(zmq_address))
+    asyncio.run(consumer(zmq_address, db_url))
 
 
 if __name__ == "__main__":
