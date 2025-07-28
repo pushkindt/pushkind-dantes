@@ -60,7 +60,7 @@ jobs:
           name: pushkind-crawlers
           path: ./dist/
   deploy:
-    needs: build
+    needs: [build-rust, build-python]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
