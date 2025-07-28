@@ -1,31 +1,28 @@
 name: Deploy development
 
-# on:
-#   push:
-#     branches: [ main ]
 on:
-  pull_request:
+  push:
     branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # build-rust:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v2
-  #     - uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #     - uses: actions-rs/cargo@v1
-  #       with:
-  #         command: build
-  #         args: --release --all-features
-  #     - uses: actions/upload-artifact@v4
-  #       with:
-  #         name: pushkind-dantes
-          # path: ./target/release/
+  build-rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pushkind-dantes
+          path: ./target/release/
   build-python:
     runs-on: ubuntu-latest
     defaults:
@@ -51,11 +48,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: pushkind-crawlers
-          path: ./dist/
-      - run: |
-          ls -la ./dist/
-          ls -la ./dist/pushkind_crawlers-0.1.0-py3-none-any.whl
-          ls -la .
+          path: crawlers/dist/
   deploy:
     needs: build-python
     runs-on: ubuntu-latest
