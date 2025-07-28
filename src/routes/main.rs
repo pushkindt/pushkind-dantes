@@ -57,7 +57,7 @@ pub async fn process_crawler(
     pool: web::Data<DbPool>,
     server_config: web::Data<ServerConfig>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "pasrser", Some("/na")) {
+    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
         return response;
     }
 
