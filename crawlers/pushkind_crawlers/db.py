@@ -1,18 +1,10 @@
 import datetime as dt
 
-from sqlalchemy import (
-    Column,
-    Float,
-    Integer,
-    String,
-    create_engine,
-    func,
-    select,
-)
+from pushkind_crawlers.crawler.protocols import Category
+from pushkind_crawlers.crawler.protocols import Product as ParsedProduct
+from sqlalchemy import Column, Float, Integer, String, create_engine, func, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.types import TIMESTAMP
-
-from pushkind_crawlers.crawler.protocols import Category, Product as ParsedProduct
 
 
 def turn_off_processing(db_url: str, crawler_id: str):
@@ -40,7 +32,7 @@ class Crawler(Base):
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
 
-class ProductDB(Base):
+class Product(Base):
     __tablename__ = "products"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -60,27 +52,25 @@ class ProductDB(Base):
 def save_products(
     db_url: str,
     crawler_selector: str,
-    items: list[tuple[Category, list[ParsedProduct]]],
+    products: list[ParsedProduct],
 ) -> None:
     """Persist parsed products to the database."""
     engine = create_engine(db_url)
     with Session(engine) as session:
-        crawler = session.scalars(
-            select(Crawler).where(Crawler.selector == crawler_selector)
-        ).one()
-        for category, products in items:
-            for product in products:
-                session.add(
-                    ProductDB(
-                        crawler_id=crawler.id,
-                        name=product.name,
-                        sku=product.sku,
-                        category=category.name,
-                        units=None,
-                        price=product.price,
-                        amount=None,
-                        description=None,
-                        url=product.url,
-                    )
+        crawler = session.scalars(select(Crawler).where(Crawler.selector == crawler_selector)).one()
+        session.query(Product).filter(Product.crawler_id == crawler.id).delete()
+        for product in products:
+            session.add(
+                Product(
+                    crawler_id=crawler.id,
+                    name=product.name,
+                    sku=product.sku,
+                    category=product.category,
+                    units=product.units,
+                    price=product.price,
+                    amount=product.amount,
+                    description=product.description,
+                    url=product.url,
                 )
+            )
         session.commit()

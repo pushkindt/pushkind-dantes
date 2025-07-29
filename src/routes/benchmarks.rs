@@ -4,18 +4,28 @@ use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::db::DbPool;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
+use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
+use pushkind_common::pagination::Paginated;
 use pushkind_common::routes::{alert_level_to_str, ensure_role, redirect};
+use serde::Deserialize;
 use tera::Context;
 use validator::Validate;
 
 use crate::domain::benchmark::NewBenchmark;
 use crate::forms::benchmarks::{AddBenchmarkForm, UploadBenchmarksForm};
+use crate::repository::BenchmarkListQuery;
 use crate::repository::benchmark::DieselBenchmarkRepository;
 use crate::repository::{BenchmarkReader, BenchmarkWriter};
 use crate::routes::render_template;
 
+#[derive(Deserialize)]
+struct BenchmarkQueryParams {
+    page: Option<usize>,
+}
+
 #[get("/benchmarks")]
 pub async fn show_benchmarks(
+    params: web::Query<BenchmarkQueryParams>,
     user: AuthenticatedUser,
     flash_messages: IncomingFlashMessages,
     pool: web::Data<DbPool>,
@@ -24,6 +34,8 @@ pub async fn show_benchmarks(
     if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
         return response;
     }
+
+    let page = params.page.unwrap_or(1);
 
     let mut context = Context::new();
 
@@ -39,8 +51,12 @@ pub async fn show_benchmarks(
 
     let repo = DieselBenchmarkRepository::new(&pool);
 
-    let benchmarks = match repo.list(user.hub_id) {
-        Ok(benchmarks) => benchmarks,
+    let benchmarks = match repo
+        .list(BenchmarkListQuery::new(user.hub_id).paginate(page, DEFAULT_ITEMS_PER_PAGE))
+    {
+        Ok((total, benchmarks)) => {
+            Paginated::new(benchmarks, page, total.div_ceil(DEFAULT_ITEMS_PER_PAGE))
+        }
         Err(e) => {
             log::error!("Failed to list benchmarks: {e}");
             return HttpResponse::InternalServerError().finish();

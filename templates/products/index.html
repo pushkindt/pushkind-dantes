@@ -3,14 +3,6 @@
 {% block content %}
     {% include 'components/navigation.html' %}
 
-{% if products %}
-    <div class="container mb-1">
-        <div class="row">
-            <div class="col">
-                <input type="text" class="form-control" placeholder="Фильтр" id="filter">
-            </div>
-        </div>
-    </div>
     <div class="container bg-white border rounded my-2" id="items">
         <div class="row d-none d-sm-flex fw-bold">
             <div class="col overflow-hidden">
@@ -29,7 +21,7 @@
                 Описание
             </div>
         </div>
-        {% for product in products %}
+        {% for product in products.items %}
             <div class="row my-1 py-1 border-top product selectable">
                 <div class="col overflow-hidden">
                     {{product.name}}
@@ -43,22 +35,18 @@
                 <div class="col overflow-hidden">
                     {{product.price}} / {{product.amount}} {{product.units}}
                 </div>
-                <div class="col overflow-hidden">
+                <div class="col overflow-hidden text-truncate">
                     {{product.description}}
                 </div>
             </div>
-        {% endfor %}
-    </div>
-{% else %}
-    <div class="container">
-        <div class="row">
-            <div class="col">
-                <div class="alert alert-danger" role="alert">
-                    Парсер не обработал ни одного товара
-                </div>
+        {% else %}
+            <div class="alert alert-danger" role="alert">
+                Нет товаров для отображения.
             </div>
-        </div>
+        {% endfor %}
+
+        {% set items = products %}
+        {% include 'components/pagination.html' %}
     </div>
-{% endif %}
 
 {% endblock %}

@@ -4,7 +4,7 @@ use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::benchmark::{Benchmark, NewBenchmark};
 use crate::models::benchmark::{Benchmark as DbBenchmark, NewBenchmark as DbNewBenchmark};
-use crate::repository::{BenchmarkReader, BenchmarkWriter};
+use crate::repository::{BenchmarkListQuery, BenchmarkReader, BenchmarkWriter};
 
 pub struct DieselBenchmarkRepository<'a> {
     pub pool: &'a DbPool,
@@ -17,20 +17,37 @@ impl<'a> DieselBenchmarkRepository<'a> {
 }
 
 impl BenchmarkReader for DieselBenchmarkRepository<'_> {
-    fn list(&self, hub_id: i32) -> RepositoryResult<Vec<Benchmark>> {
+    fn list(&self, query: BenchmarkListQuery) -> RepositoryResult<(usize, Vec<Benchmark>)> {
         use crate::schema::benchmarks;
 
         let mut conn = self.pool.get()?;
 
-        let results = benchmarks::table
-            .filter(benchmarks::hub_id.eq(hub_id))
-            .order(benchmarks::name.asc())
-            .get_results::<DbBenchmark>(&mut conn)?;
+        let query_builder = || {
+            benchmarks::table
+                .filter(benchmarks::hub_id.eq(query.hub_id))
+                .into_boxed::<diesel::sqlite::Sqlite>()
+        };
 
-        Ok(results
+        let total = query_builder().count().get_result::<i64>(&mut conn)? as usize;
+
+        let mut items = query_builder();
+
+        // Apply pagination if requested
+        if let Some(pagination) = &query.pagination {
+            let offset = ((pagination.page.max(1) - 1) * pagination.per_page) as i64;
+            let limit = pagination.per_page as i64;
+            items = items.offset(offset).limit(limit);
+        }
+
+        // Final load
+        let items = items
+            .order(benchmarks::name.asc())
+            .load::<DbBenchmark>(&mut conn)?
             .into_iter()
-            .map(|db_benchmark| db_benchmark.into())
-            .collect()) // Convert DbBenchmark to DomainBenchmark
+            .map(Into::into)
+            .collect::<Vec<Benchmark>>();
+
+        Ok((total, items))
     }
 }
 impl BenchmarkWriter for DieselBenchmarkRepository<'_> {

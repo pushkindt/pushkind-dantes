@@ -5,7 +5,6 @@ import os
 import zmq
 import zmq.asyncio
 from dotenv import load_dotenv
-from pushkind_crawlers.crawler.protocols import Category, Product
 from pushkind_crawlers.crawler.stores.tea101 import parse_101tea
 from pushkind_crawlers.db import save_products, turn_off_processing
 
@@ -20,10 +19,6 @@ crawlers_map = {
 }
 
 
-def save_all_products(db_url: str, crawler_id: str, all_products: list[tuple[Category, list[Product]]]):
-    save_products(db_url, crawler_id, all_products)
-
-
 def log_task_exception(task: asyncio.Task):
     try:
         task.result()
@@ -33,31 +28,31 @@ def log_task_exception(task: asyncio.Task):
 
 async def consumer(zmq_address: str, db_url: str):
 
-    async def handle_message(crawler_id: str):
+    async def handle_message(crawler_selector: str):
         try:
-            if crawler_id in crawlers_map:
-                log.info("Handling: %s", crawler_id)
-                products = await crawlers_map[crawler_id]()
-                save_all_products(db_url, crawler_id, products)
-                turn_off_processing(db_url, crawler_id)
-                log.info("Done processing: %s → %d products", crawler_id, len(products))
+            if crawler_selector in crawlers_map:
+                log.info("Handling: %s", crawler_selector)
+                products = await crawlers_map[crawler_selector]()
+                save_products(db_url, crawler_selector, products)
+                turn_off_processing(db_url, crawler_selector)
+                log.info("Done processing: %s → %d products", crawler_selector, len(products))
             else:
-                log.error("Unknown crawler: %s", crawler_id)
-                raise ValueError(f"Unknown crawler: {crawler_id}")
+                log.error("Unknown crawler: %s", crawler_selector)
+                raise ValueError(f"Unknown crawler: {crawler_selector}")
         finally:
-            running_crawlers.discard(crawler_id)
+            running_crawlers.discard(crawler_selector)
 
     socket = ctx.socket(zmq.PULL)
     socket.bind(zmq_address)
     log.info("Waiting for messages...")
     while True:
-        crawler_id = await socket.recv()
-        crawler_id = crawler_id.decode("utf-8")
-        if crawler_id in running_crawlers:
-            log.warning("Crawler already running: %s. Skipping.", crawler_id)
+        crawler_selector = await socket.recv()
+        crawler_selector = crawler_selector.decode("utf-8")
+        if crawler_selector in running_crawlers:
+            log.warning("Crawler already running: %s. Skipping.", crawler_selector)
             continue
-        running_crawlers.add(crawler_id)
-        task = asyncio.create_task(handle_message(crawler_id))
+        running_crawlers.add(crawler_selector)
+        task = asyncio.create_task(handle_message(crawler_selector))
         task.add_done_callback(log_task_exception)
 
 
