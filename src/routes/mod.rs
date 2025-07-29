@@ -3,7 +3,9 @@ use lazy_static::lazy_static;
 use log;
 use tera::{Context, Tera};
 
+pub mod benchmarks;
 pub mod main;
+pub mod products;
 
 lazy_static! {
     pub static ref TEMPLATES: Tera = {

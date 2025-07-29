@@ -1,6 +1,7 @@
 -- Your SQL goes here
 CREATE TABLE crawlers (
     id INTEGER NOT NULL PRIMARY KEY,
+    hub_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     url TEXT NOT NULL,
     selector TEXT NOT NULL,
@@ -8,5 +9,5 @@ CREATE TABLE crawlers (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO crawlers (id, name, url, selector)
-VALUES (1, '101tea', 'https://101tea.ru', '101tea');
+INSERT INTO crawlers (id, hub_id, name, url, selector)
+VALUES (1, 1, '101tea', 'https://101tea.ru', '101tea');

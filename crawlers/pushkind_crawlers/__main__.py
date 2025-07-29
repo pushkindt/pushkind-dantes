@@ -7,7 +7,7 @@ import zmq.asyncio
 from dotenv import load_dotenv
 from pushkind_crawlers.crawler.protocols import Category, Product
 from pushkind_crawlers.crawler.stores.tea101 import parse_101tea
-from pushkind_crawlers.db import turn_off_processing
+from pushkind_crawlers.db import save_products, turn_off_processing
 
 ctx = zmq.asyncio.Context()
 log = logging.getLogger(__name__)
@@ -20,11 +20,8 @@ crawlers_map = {
 }
 
 
-def products_to_csv(all_products: list[tuple[Category, list[Product]]], file_name: str):
-    with open(file_name, "w", encoding="utf-8") as f:
-        for category, products in all_products:
-            for product in products:
-                f.write(f"{category.name},{product.sku},{product.name},{product.price},{product.url}\n")
+def save_all_products(db_url: str, crawler_id: str, all_products: list[tuple[Category, list[Product]]]):
+    save_products(db_url, crawler_id, all_products)
 
 
 def log_task_exception(task: asyncio.Task):
@@ -41,7 +38,7 @@ async def consumer(zmq_address: str, db_url: str):
             if crawler_id in crawlers_map:
                 log.info("Handling: %s", crawler_id)
                 products = await crawlers_map[crawler_id]()
-                products_to_csv(products, f"assets/{crawler_id}.csv")
+                save_all_products(db_url, crawler_id, products)
                 turn_off_processing(db_url, crawler_id)
                 log.info("Done processing: %s → %d products", crawler_id, len(products))
             else:

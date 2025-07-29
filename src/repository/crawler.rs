@@ -17,12 +17,15 @@ impl<'a> DieselCrawlerRepository<'a> {
 }
 
 impl CrawlerReader for DieselCrawlerRepository<'_> {
-    fn list(&mut self) -> RepositoryResult<Vec<Crawler>> {
+    fn list(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>> {
         use crate::schema::crawlers;
 
         let mut conn = self.pool.get()?;
 
-        let results = crawlers::table.load::<DbCrawler>(&mut conn)?;
+        let results = crawlers::table
+            .filter(crawlers::hub_id.eq(hub_id))
+            .order(crawlers::id.asc())
+            .get_results::<DbCrawler>(&mut conn)?;
 
         Ok(results
             .into_iter()
@@ -30,7 +33,7 @@ impl CrawlerReader for DieselCrawlerRepository<'_> {
             .collect()) // Convert DbCrawler to DomainCrawler
     }
 
-    fn get_by_id(&mut self, id: i32) -> RepositoryResult<Option<Crawler>> {
+    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>> {
         use crate::schema::crawlers;
 
         let mut conn = self.pool.get()?;
@@ -44,7 +47,7 @@ impl CrawlerReader for DieselCrawlerRepository<'_> {
     }
 }
 impl CrawlerWriter for DieselCrawlerRepository<'_> {
-    fn set_processing(&mut self, id: i32, status: bool) -> RepositoryResult<usize> {
+    fn set_processing(&self, id: i32, status: bool) -> RepositoryResult<usize> {
         use crate::schema::crawlers;
 
         let mut conn = self.pool.get()?;

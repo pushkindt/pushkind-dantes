@@ -1,9 +1,10 @@
 use chrono::NaiveDateTime;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Serialize)]
 pub struct Crawler {
     pub id: i32,
+    pub hub_id: i32,
     pub name: String,
     pub url: String,
     pub selector: String,

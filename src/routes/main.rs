@@ -35,9 +35,9 @@ pub async fn index(
     context.insert("current_page", "index");
     context.insert("home_url", &server_config.auth_service_url);
 
-    let mut repo = DieselCrawlerRepository::new(&pool);
+    let repo = DieselCrawlerRepository::new(&pool);
 
-    let crawlers = match repo.list() {
+    let crawlers = match repo.list(user.hub_id) {
         Ok(crawlers) => crawlers,
         Err(e) => {
             log::error!("Failed to list crawlers: {e}");
@@ -63,7 +63,7 @@ pub async fn process_crawler(
 
     let crawler_id = crawler_id.into_inner();
 
-    let mut repo = DieselCrawlerRepository::new(&pool);
+    let repo = DieselCrawlerRepository::new(&pool);
 
     let crawler = match repo.get_by_id(crawler_id) {
         Ok(Some(crawler)) => crawler,
