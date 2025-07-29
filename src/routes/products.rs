@@ -6,8 +6,8 @@ use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::{alert_level_to_str, ensure_role};
 use tera::Context;
 
-use crate::repository::product::DieselProductRepository;
 use crate::repository::ProductReader;
+use crate::repository::product::DieselProductRepository;
 use crate::routes::render_template;
 
 #[get("/crawler/{crawler_id}/products")]

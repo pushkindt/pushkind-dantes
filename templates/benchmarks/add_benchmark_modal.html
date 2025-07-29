@@ -1,0 +1,75 @@
+<div class="modal fade" id="benchmarkModal" tabindex="-1" aria-labelledby="benchmarkModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="benchmarkModalLabel">Добавить бенчмарк</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/benchmark/add" method="POST">
+                    <input type="hidden" name="hub_id" value="{{current_user.hub_id}}" required readonly>
+                    <div class="row mb-3">
+                        <label for="benchmarkModalName" class="col-md-2 col-form-label">Название</label>
+                        <div class="col-md-10">
+                            <input name="name" type="text" class="form-control" id="benchmarkModalName" value="" placeholder="Название" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label for="benchmarkModalSku" class="col-md-2 col-form-label">Артикул</label>
+                        <div class="col-md-10">
+                            <input name="sku" type="text" class="form-control" id="benchmarkModalSku" value="" placeholder="Артикул" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label for="benchmarkModalCategory" class="col-md-2 col-form-label">Категория</label>
+                        <div class="col-md-10">
+                            <input name="category" type="text" class="form-control" id="benchmarkModalCategory" value="" placeholder="Категория" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label for="benchmarkModalUnits" class="col-md-2 col-form-label">ЕИ</label>
+                        <div class="col-md-10">
+                            <input name="units" type="text" class="form-control" id="benchmarkModalUnits" value="" placeholder="ЕИ" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label for="benchmarkModalPrice" class="col-md-2 col-form-label">Цена</label>
+                        <div class="col-md-10">
+                            <input name="price" type="number" step="0.01" class="form-control" id="benchmarkModalPrice" value="" placeholder="Цена" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label for="benchmarkModalAmount" class="col-md-2 col-form-label">Объём</label>
+                        <div class="col-md-10">
+                            <input name="amount" type="number" step="0.01" class="form-control" id="benchmarkModalAmount" value="" placeholder="Объём в одной упаковке (грамм, шт, и т.п.)" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <label for="benchmarkModalDescription" class="col-md-2 col-form-label">Описание</label>
+                        <div class="col-md-10">
+                            <textarea name="description" class="form-control" id="benchmarkModalDescription" \placeholder="Описание" required></textarea>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col">
+                            <button class="btn btn-primary" type="submit">Сохранить</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <form class="w-100" action="/benchmarks/upload" method="POST" enctype="multipart/form-data">
+                    <div class="row">
+                        <div class="col">
+                            <input class="form-control" type="file" name="csv" accept=".csv" required>
+                            <div class="w-100"><sup><small class="text-muted">"name","sku","category","units","price","amount","description"</small></sup></div>
+                        </div>
+                        <div class="col-auto">
+                            <button class="btn btn-success" type="submit">Из csv</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

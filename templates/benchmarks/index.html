@@ -1,9 +1,33 @@
 {% extends 'base.html' %}
 
+{% block styles %}
+<style>
+    .add-benchmark-container {
+        display: flex;
+        align-items: center;
+        text-align: center;
+    }
+    .add-benchmark-container > button:hover {
+        opacity: 0.5;
+    }
+    .add-benchmark-container > button {
+        opacity: 1.0;
+    }
+    .add-benchmark-container > button:active {
+        opacity: 1.0;
+    }
+    .add-benchmark-container::before,
+    .add-benchmark-container::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid #000;
+        margin: 0 10px;
+    }
+</style>
+{% endblock %}
 {% block content %}
     {% include 'components/navigation.html' %}
 
-{% if benchmarks %}
     <div class="container mb-1">
         <div class="row">
             <div class="col">
@@ -12,6 +36,13 @@
         </div>
     </div>
     <div class="container bg-white border rounded my-2" id="items">
+        <div class="row">
+            <div class="col text-center add-benchmark-container">
+                <button class="btn btn-link" type="button" data-bs-toggle="modal" data-bs-target="#benchmarkModal">
+                    <i class="bi bi-plus-circle"></i>
+                </button>
+            </div>
+        </div>
         <div class="row d-none d-sm-flex fw-bold">
             <div class="col overflow-hidden">
                 Название
@@ -49,16 +80,6 @@
             </div>
         {% endfor %}
     </div>
-{% else %}
-    <div class="container">
-        <div class="row">
-            <div class="col">
-                <div class="alert alert-danger" role="alert">
-                    Ни один бенчмарк не загружен.
-                </div>
-            </div>
-        </div>
-    </div>
-{% endif %}
 
+    {% include 'benchmarks/add_benchmark_modal.html' %}
 {% endblock %}
