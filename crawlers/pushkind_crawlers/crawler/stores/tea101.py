@@ -1,4 +1,5 @@
 import logging
+import re
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
@@ -9,10 +10,30 @@ log = logging.getLogger(__name__)
 
 
 class WebstoreParser101TeaRu:
-    base_url: str = "https://101tea.ru/"
+    base_url: str = "https://101tea.ru//moskva/product/puer_shu_dai_7692_2020_g_blin_357_g/"
 
     def __init__(self, http_get: HTTPGet):
         self.http_get = http_get
+
+    async def get_product(self, url: str) -> Product | None:
+        status, response = await self.http_get.get(url)
+        if status != 200:
+            return None
+        soup = BeautifulSoup(response, "html.parser")
+        try:
+            return Product(
+                sku=soup.find("div", {"class": "product_art"}).find_all("span")[1].text.strip(),  # type: ignore
+                name=soup.find("h1", {"itemprop": "name"}).text.strip(),  # type: ignore
+                price=soup.find("span", {"class": "js-price-val"}).text.replace(" ", ""),  # type: ignore
+                category=re.sub("\n+", "/", soup.find("div", {"class": "breadcrumbs"}).text.strip()),  # type: ignore
+                units=soup.find("span", {"class": "product-card__calculus-unit"}).text.strip(),  # type: ignore
+                amount=soup.find("span", {"class": "js-product-calc-value product-card__calculus-value"}).text.replace(" ", ""),  # type: ignore
+                description=soup.find("div", {"data-js-catalog-tab-id": "about_product"}).text.strip(),  # type: ignore
+                url=url,
+            )
+        except Exception as e:
+            log.error(f"Error parsing product {url}: {e}")
+            return None
 
     async def get_products(self, url: str) -> list[Product]:
         status, response = await self.http_get.get(url)
@@ -30,17 +51,19 @@ class WebstoreParser101TeaRu:
 
             # Extract product URL to derive SKU
             link_tag = name_tag.parent  # type: ignore
-            href = link_tag.get("href") if link_tag else ""
-            sku = href.strip("/").split("/")[-1] if href else "unknown"  # type: ignore
+            href = str(link_tag.get("href"))  # type: ignore
 
-            # Extract price
-            price_tag = card.find("span", class_="product-card__current-price cur")  # type: ignore
-            price_tag = price_tag.find("span", class_="js-price-val") if price_tag else None  # type: ignore
-            price_text = price_tag.get_text(strip=True) if price_tag else "0"
-            # Remove non-numeric characters and convert to float
-            price = float("".join(filter(str.isdigit, price_text))) if price_text else 0.0
+            if not href:
+                log.warning(f"Product {name} has no href")
+                continue
 
-            products.append(Product(sku=sku, name=name, price=price, url=urljoin(self.base_url, href) if href else ""))  # type: ignore
+            product = await self.get_product(urljoin(self.base_url, href))
+
+            if not product:
+                log.warning(f"Product {name} at {href} cannot be parsed")
+                continue
+
+            products.append(product)  # type: ignore
 
         return products
 
@@ -80,7 +103,7 @@ class WebstoreParser101TeaRu:
         return result
 
 
-async def parse_101tea() -> list[tuple[Category, list[Product]]]:
+async def parse_101tea() -> list[Product]:
     all_products = []
     parser_101 = WebstoreParser101TeaRu(http_get=HTTPGetAIOHTTP())
     categories = await parser_101.get_categories()
@@ -98,5 +121,8 @@ async def parse_101tea() -> list[tuple[Category, list[Product]]]:
             except Exception:
                 continue
             categery_products += page_products
-        all_products.append((category, categery_products))
-    return all_products
+        all_products += categery_products
+
+    # remove duplicate products based on product.url
+    unique_products = {p.url: p for p in all_products}.values()
+    return list(unique_products)

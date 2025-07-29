@@ -13,7 +13,7 @@ use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::logout;
 
 use pushkind_dantes::models::config::ServerConfig;
-use pushkind_dantes::routes::benchmarks::{show_benchmarks, add_benchmark, upload_benchmarks};
+use pushkind_dantes::routes::benchmarks::{add_benchmark, show_benchmarks, upload_benchmarks};
 use pushkind_dantes::routes::main::{index, not_assigned, process_crawler};
 use pushkind_dantes::routes::products::show_products;
 

@@ -1,12 +1,16 @@
-from typing import Protocol
+from typing import Optional, Protocol
 
 from pydantic import BaseModel
 
 
 class Product(BaseModel):
-    sku: str
     name: str
+    sku: str
+    category: Optional[str]
+    units: Optional[str]
     price: float
+    amount: Optional[float]
+    description: Optional[str]
     url: str
 
 
