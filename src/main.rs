@@ -13,7 +13,9 @@ use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::logout;
 
 use pushkind_dantes::models::config::ServerConfig;
+use pushkind_dantes::routes::benchmarks::show_benchmarks;
 use pushkind_dantes::routes::main::{index, not_assigned, process_crawler};
+use pushkind_dantes::routes::products::show_products;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -79,6 +81,8 @@ async fn main() -> std::io::Result<()> {
                     .wrap(RedirectUnauthorized)
                     .service(index)
                     .service(process_crawler)
+                    .service(show_benchmarks)
+                    .service(show_products)
                     .service(logout),
             )
             .app_data(web::Data::new(pool.clone()))

@@ -3,7 +3,7 @@
 {% block content %}
     {% include 'components/navigation.html' %}
 
-{% if crawlers %}
+{% if products %}
     <div class="container mb-1">
         <div class="row">
             <div class="col">
@@ -17,32 +17,34 @@
                 Название
             </div>
             <div class="col overflow-hidden">
-                Дата последнего сканирования
+                Артикул
             </div>
             <div class="col overflow-hidden">
-                Обработка
+                Категория
+            </div>
+            <div class="col overflow-hidden">
+                Стоимость
+            </div>
+            <div class="col overflow-hidden">
+                Описание
             </div>
         </div>
-        {% for crawler in crawlers %}
-            <div class="row my-1 py-1 border-top crawler selectable">
+        {% for product in products %}
+            <div class="row my-1 py-1 border-top product selectable">
                 <div class="col overflow-hidden">
-                    <a href="/crawler/{{crawler.id}}/products">{{crawler.name}}</a>
+                    {{product.name}}
                 </div>
                 <div class="col overflow-hidden">
-                    {{crawler.updated_at | date(format="%Y-%m-%d %H:%M")}}
+                    {{product.sku}}
                 </div>
                 <div class="col overflow-hidden">
-                    <form method="POST" action="/process/{{crawler.id}}">
-                        {% if not crawler.processing %}
-                            <button type="submit" class="btn btn-sm btn-success">
-                                Обработка
-                            </button>
-                        {% else %}
-                            <button type="button" disabled class="btn btn-sm btn-secondary">
-                                <i class="bi bi-arrow-clockwise"></i>
-                            </button>
-                        {% endif %}
-                    </form>
+                    {{product.category}}
+                </div>
+                <div class="col overflow-hidden">
+                    {{product.price}} / {{product.amount}} {{product.units}}
+                </div>
+                <div class="col overflow-hidden">
+                    {{product.description}}
                 </div>
             </div>
         {% endfor %}
@@ -52,7 +54,7 @@
         <div class="row">
             <div class="col">
                 <div class="alert alert-danger" role="alert">
-                    Ни один веб-парсер не зарегистрирован.
+                    Парсер не обработал ни одного товара
                 </div>
             </div>
         </div>
