@@ -4,41 +4,11 @@
     {% include 'components/navigation.html' %}
 
     <div class="container bg-white border rounded my-2" id="items">
-        <div class="row d-none d-sm-flex fw-bold">
-            <div class="col overflow-hidden">
-                Название
-            </div>
-            <div class="col overflow-hidden">
-                Артикул
-            </div>
-            <div class="col overflow-hidden">
-                Категория
-            </div>
-            <div class="col overflow-hidden">
-                Стоимость
-            </div>
-            <div class="col overflow-hidden">
-                Описание
-            </div>
-        </div>
+
+        {% include 'components/product_header.html' %}
+
         {% for product in products.items %}
-            <div class="row my-1 py-1 border-top product selectable">
-                <div class="col overflow-hidden">
-                    {{product.name}}
-                </div>
-                <div class="col overflow-hidden">
-                    {{product.sku}}
-                </div>
-                <div class="col overflow-hidden">
-                    {{product.category}}
-                </div>
-                <div class="col overflow-hidden">
-                    {{product.price}} / {{product.amount}} {{product.units}}
-                </div>
-                <div class="col overflow-hidden text-truncate">
-                    {{product.description}}
-                </div>
-            </div>
+            {% include 'components/product.html' %}
         {% else %}
             <div class="alert alert-danger" role="alert">
                 Нет товаров для отображения.

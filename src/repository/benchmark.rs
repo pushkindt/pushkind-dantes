@@ -17,6 +17,19 @@ impl<'a> DieselBenchmarkRepository<'a> {
 }
 
 impl BenchmarkReader for DieselBenchmarkRepository<'_> {
+    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>> {
+        use crate::schema::benchmarks;
+
+        let mut conn = self.pool.get()?;
+
+        let benchmark = benchmarks::table
+            .filter(benchmarks::id.eq(id))
+            .first::<DbBenchmark>(&mut conn)
+            .optional()?;
+
+        Ok(benchmark.map(Into::into))
+    }
+
     fn list(&self, query: BenchmarkListQuery) -> RepositoryResult<(usize, Vec<Benchmark>)> {
         use crate::schema::benchmarks;
 

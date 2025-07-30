@@ -19,7 +19,7 @@ struct ProductsQueryParams {
     page: Option<usize>,
 }
 
-#[get("/crawler/{crawler_id}/products")]
+#[get("/crawler/{crawler_id}")]
 pub async fn show_products(
     params: web::Query<ProductsQueryParams>,
     crawler_id: web::Path<i32>,
@@ -48,9 +48,11 @@ pub async fn show_products(
 
     let repo = DieselProductRepository::new(&pool);
 
-    let products = match repo
-        .list(ProductListQuery::new(crawler_id.into_inner()).paginate(page, DEFAULT_ITEMS_PER_PAGE))
-    {
+    let products = match repo.list(
+        ProductListQuery::default()
+            .crawler(crawler_id.into_inner())
+            .paginate(page, DEFAULT_ITEMS_PER_PAGE),
+    ) {
         Ok((total, products)) => {
             Paginated::new(products, page, total.div_ceil(DEFAULT_ITEMS_PER_PAGE))
         }

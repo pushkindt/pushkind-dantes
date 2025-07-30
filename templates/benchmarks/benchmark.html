@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    {% include 'components/navigation.html' %}
+
+    <div class="container bg-white border rounded my-2">
+        <h5>Бенчмарк</h5>
+        {% include 'components/product_header.html' %}
+
+        {% set product = benchmark %}
+        {% include 'components/product.html' %}
+
+    </div>
+
+
+    <div class="container bg-white border rounded my-2">
+        <h5>Товары</h5>
+        {% include 'components/product_header.html' %}
+
+        {% for product in products %}
+            {% include 'components/product.html' %}
+        {% endfor %}
+
+    </div>
+
+{% endblock %}
