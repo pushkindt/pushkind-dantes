@@ -1,6 +1,6 @@
+import asyncio
 import logging
 import re
-import asyncio
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
@@ -19,27 +19,23 @@ class WebstoreParser101TeaRu:
     async def get_product(self, url: str) -> Product | None:
         status, response = await self.http_get.get(url)
         if status != 200:
-            return None
+            raise ValueError(f"Failed to get product {url}. HTTP status: {status}")
         soup = BeautifulSoup(response, "html.parser")
-        try:
-            return Product(
-                sku=soup.find("div", {"class": "product_art"}).find_all("span")[1].text.strip(),  # type: ignore
-                name=soup.find("h1", {"itemprop": "name"}).text.strip(),  # type: ignore
-                price=soup.find("span", {"class": "js-price-val"}).text.replace(" ", ""),  # type: ignore
-                category=re.sub("\n+", "/", soup.find("div", {"class": "breadcrumbs"}).text.strip()),  # type: ignore
-                units=soup.find("span", {"class": "product-card__calculus-unit"}).text.strip(),  # type: ignore
-                amount=soup.find("span", {"class": "js-product-calc-value product-card__calculus-value"}).text.replace(" ", ""),  # type: ignore
-                description=soup.find("div", {"data-js-catalog-tab-id": "about_product"}).text.strip(),  # type: ignore
-                url=url,
-            )
-        except Exception as e:
-            log.error(f"Error parsing product {url}: {e}")
-            return None
+        return Product(
+            sku=soup.find("div", {"class": "product_art"}).find_all("span")[1].text.strip(),  # type: ignore
+            name=soup.find("h1", {"itemprop": "name"}).text.strip(),  # type: ignore
+            price=soup.find("span", {"class": "js-price-val"}).text.replace(" ", ""),  # type: ignore
+            category=re.sub("\n+", "/", soup.find("div", {"class": "breadcrumbs"}).text.strip()),  # type: ignore
+            units=soup.find("span", {"class": "product-card__calculus-unit"}).text.strip(),  # type: ignore
+            amount=soup.find("span", {"class": "js-product-calc-value product-card__calculus-value"}).text.replace(" ", ""),  # type: ignore
+            description=soup.find("div", {"data-js-catalog-tab-id": "about_product"}).text.strip(),  # type: ignore
+            url=url,
+        )
 
     async def get_products(self, url: str) -> list[Product]:
         status, response = await self.http_get.get(url)
         if status != 200:
-            return []
+            raise ValueError(f"Failed to get products {url}. HTTP status: {status}")
 
         soup = BeautifulSoup(response, "html.parser")
         product_cards = soup.find_all("div", {"class": "product-card"})
@@ -54,19 +50,19 @@ class WebstoreParser101TeaRu:
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
         products = []
-            for res in results:
-                if isinstance(res, Product):
-                    products.append(res)
-                elif isinstance(res, Exception):
-                    # repr() ensures that even exceptions without a message
-                    # provide useful information about their type
-                    log.warning("Error parsing product: %r", res)
+        for res in results:
+            if isinstance(res, Product):
+                products.append(res)
+            elif isinstance(res, Exception):
+                # repr() ensures that even exceptions without a message
+                # provide useful information about their type
+                log.warning("Error parsing product: %r", res)
         return products
 
     async def get_categories(self) -> list[Category]:
         status, response = await self.http_get.get(self.base_url)
         if status != 200:
-            return []
+            raise ValueError(f"Failed to get base_url {self.base_url}. HTTP status: {status}")
         soup = BeautifulSoup(response, "html.parser")
         category_links = soup.find_all("a", {"class": "catalog-nav__link"})
         result = [
@@ -122,9 +118,7 @@ async def parse_101tea() -> list[Product]:
                     products.extend(res)
                 elif isinstance(res, Exception):
                     # use %r to include exception type when message is empty
-                    log.warning(
-                        "Error parsing page in %s: %r", category.name, res
-                    )
+                    log.warning("Error parsing page in %s: %r", category.name, res)
             return products
 
         category_tasks = [process_category(cat) for cat in categories]
