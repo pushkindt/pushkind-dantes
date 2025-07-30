@@ -102,7 +102,7 @@ class WebstoreParser101TeaRu:
 async def parse_101tea() -> list[Product]:
     all_products = []
 
-    async with HTTPGetAIOHTTP() as http_get:
+    async with HTTPGetAIOHTTP(max_concurrency=5) as http_get:
         parser_101 = WebstoreParser101TeaRu(http_get=http_get)
         categories = await parser_101.get_categories()
 
