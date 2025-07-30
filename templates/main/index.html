@@ -20,9 +20,9 @@
             </div>
         </div>
         {% for crawler in crawlers %}
-            <div class="row my-1 py-1 border-top crawler selectable">
+            <div class="row my-1 py-1 border-top crawler selectable" data-id="{{crawler.id}}" data-kind="crawler">
                 <div class="col overflow-hidden">
-                    <a href="/crawler/{{crawler.id}}/products">{{crawler.name}}</a>
+                   {{crawler.name}}
                 </div>
                 <div class="col overflow-hidden">
                     {{crawler.updated_at | date(format="%Y-%m-%d %H:%M")}}

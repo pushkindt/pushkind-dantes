@@ -9,9 +9,10 @@ pub mod benchmark;
 pub mod crawler;
 pub mod product;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ProductListQuery {
-    pub crawler_id: i32,
+    pub crawler_id: Option<i32>,
+    pub benchmark_id: Option<i32>,
     pub pagination: Option<Pagination>,
 }
 
@@ -35,11 +36,13 @@ impl BenchmarkListQuery {
 }
 
 impl ProductListQuery {
-    pub fn new(crawler_id: i32) -> Self {
-        Self {
-            crawler_id,
-            pagination: None,
-        }
+    pub fn crawler(mut self, crawler_id: i32) -> Self {
+        self.crawler_id = Some(crawler_id);
+        self
+    }
+    pub fn benchmark(mut self, benchmark_id: i32) -> Self {
+        self.benchmark_id = Some(benchmark_id);
+        self
     }
     pub fn paginate(mut self, page: usize, per_page: usize) -> Self {
         self.pagination = Some(Pagination { page, per_page });
@@ -64,6 +67,7 @@ pub trait ProductWriter {}
 
 pub trait BenchmarkReader {
     fn list(&self, query: BenchmarkListQuery) -> RepositoryResult<(usize, Vec<Benchmark>)>;
+    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>>;
 }
 
 pub trait BenchmarkWriter {

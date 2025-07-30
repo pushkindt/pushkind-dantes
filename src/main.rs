@@ -13,7 +13,9 @@ use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::logout;
 
 use pushkind_dantes::models::config::ServerConfig;
-use pushkind_dantes::routes::benchmarks::{add_benchmark, show_benchmarks, upload_benchmarks};
+use pushkind_dantes::routes::benchmarks::{
+    add_benchmark, show_benchmark, show_benchmarks, upload_benchmarks,
+};
 use pushkind_dantes::routes::main::{index, not_assigned, process_crawler};
 use pushkind_dantes::routes::products::show_products;
 
@@ -82,6 +84,7 @@ async fn main() -> std::io::Result<()> {
                     .service(index)
                     .service(process_crawler)
                     .service(show_benchmarks)
+                    .service(show_benchmark)
                     .service(upload_benchmarks)
                     .service(add_benchmark)
                     .service(show_products)

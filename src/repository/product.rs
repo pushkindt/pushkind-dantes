@@ -18,14 +18,28 @@ impl<'a> DieselProductRepository<'a> {
 
 impl ProductReader for DieselProductRepository<'_> {
     fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
-        use crate::schema::products;
+        use crate::schema::{product_benchmark, products};
 
         let mut conn = self.pool.get()?;
 
         let query_builder = || {
-            products::table
-                .filter(products::crawler_id.eq(query.crawler_id))
-                .into_boxed::<diesel::sqlite::Sqlite>()
+            let mut items = products::table.into_boxed::<diesel::sqlite::Sqlite>();
+
+            if let Some(crawler_id) = query.crawler_id {
+                items = items.filter(products::crawler_id.eq(crawler_id));
+            }
+
+            if let Some(benchmark_id) = query.benchmark_id {
+                items = items.filter(
+                    products::id.eq_any(
+                        product_benchmark::table
+                            .filter(product_benchmark::benchmark_id.eq(benchmark_id))
+                            .select(product_benchmark::product_id),
+                    ),
+                );
+            }
+
+            items
         };
 
         let total = query_builder().count().get_result::<i64>(&mut conn)? as usize;

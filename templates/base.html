@@ -75,6 +75,16 @@
                 var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
                     return new bootstrap.Tooltip(tooltipTriggerEl)
                 });
+
+                var selectableList = document.querySelectorAll(".selectable");
+                selectableList.forEach((selectable) => {
+                    selectable.addEventListener("click",() => {
+                        const selectableId = selectable.dataset.id;
+                        const selectableKind = selectable.dataset.kind;
+                        if (selectableId && selectableKind)
+                            document.location.href = `${selectableKind}/${selectableId}`;
+                    });
+                });
             });
 
             function createFilter(filterInputId, itemContainerId, itemSelector) {

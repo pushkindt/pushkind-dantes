@@ -13,9 +13,10 @@ use validator::Validate;
 
 use crate::domain::benchmark::NewBenchmark;
 use crate::forms::benchmarks::{AddBenchmarkForm, UploadBenchmarksForm};
-use crate::repository::BenchmarkListQuery;
 use crate::repository::benchmark::DieselBenchmarkRepository;
-use crate::repository::{BenchmarkReader, BenchmarkWriter};
+use crate::repository::product::DieselProductRepository;
+use crate::repository::{BenchmarkListQuery, ProductListQuery};
+use crate::repository::{BenchmarkReader, BenchmarkWriter, ProductReader};
 use crate::routes::render_template;
 
 #[derive(Deserialize)]
@@ -66,6 +67,62 @@ pub async fn show_benchmarks(
     context.insert("benchmarks", &benchmarks);
 
     render_template("benchmarks/index.html", &context)
+}
+
+#[get("/benchmark/{benchmark_id}")]
+pub async fn show_benchmark(
+    benchmark_id: web::Path<i32>,
+    user: AuthenticatedUser,
+    flash_messages: IncomingFlashMessages,
+    pool: web::Data<DbPool>,
+    server_config: web::Data<CommonServerConfig>,
+) -> impl Responder {
+    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
+        return response;
+    }
+
+    let mut context = Context::new();
+
+    let alerts = flash_messages
+        .iter()
+        .map(|f| (f.content(), alert_level_to_str(&f.level())))
+        .collect::<Vec<_>>();
+
+    context.insert("alerts", &alerts);
+    context.insert("current_user", &user);
+    context.insert("current_page", "benchmarks");
+    context.insert("home_url", &server_config.auth_service_url);
+
+    let benchmark_id = benchmark_id.into_inner();
+
+    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+
+    let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
+        Ok(Some(benchmark)) => benchmark,
+        Ok(None) => {
+            FlashMessage::error("Бенчмарк не существует.").send();
+            return redirect("/benchmarks");
+        }
+        Err(e) => {
+            log::error!("Failed to get benchmark: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let product_repo = DieselProductRepository::new(&pool);
+
+    let products = match product_repo.list(ProductListQuery::default().benchmark(benchmark_id)) {
+        Ok((_total, products)) => products,
+        Err(e) => {
+            log::error!("Failed to list products: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    context.insert("benchmark", &benchmark);
+    context.insert("products", &products);
+
+    render_template("benchmarks/benchmark.html", &context)
 }
 
 #[post("/benchmark/add")]

@@ -36,41 +36,10 @@
                 </button>
             </div>
         </div>
-        <div class="row d-none d-sm-flex fw-bold">
-            <div class="col overflow-hidden">
-                Название
-            </div>
-            <div class="col overflow-hidden">
-                Артикул
-            </div>
-            <div class="col overflow-hidden">
-                Категория
-            </div>
-            <div class="col overflow-hidden">
-                Стоимость
-            </div>
-            <div class="col overflow-hidden">
-                Описание
-            </div>
-        </div>
-        {% for benchmark in benchmarks.items %}
-            <div class="row my-1 py-1 border-top benchmark selectable">
-                <div class="col overflow-hidden">
-                    {{benchmark.name}}
-                </div>
-                <div class="col overflow-hidden">
-                    {{benchmark.sku}}
-                </div>
-                <div class="col overflow-hidden">
-                    {{benchmark.category}}
-                </div>
-                <div class="col overflow-hidden">
-                    {{benchmark.price}} / {{benchmark.amount}} {{benchmark.units}}
-                </div>
-                <div class="col overflow-hidden text-truncate">
-                    {{benchmark.description}}
-                </div>
-            </div>
+        {% include 'components/product_header.html' %}
+        {% set product_kind = "benchmark" %}
+        {% for product in benchmarks.items %}
+            {% include 'components/product.html' %}
         {% else %}
             <div class="alert alert-danger" role="alert">
                 Нет товаров для отображения.
