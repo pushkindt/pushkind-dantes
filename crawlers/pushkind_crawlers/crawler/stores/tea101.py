@@ -105,23 +105,25 @@ class WebstoreParser101TeaRu:
 
 async def parse_101tea() -> list[Product]:
     all_products = []
-    parser_101 = WebstoreParser101TeaRu(http_get=HTTPGetAIOHTTP())
-    categories = await parser_101.get_categories()
-    for category in categories:
-        log.info("Processing category: %s", category.name)
-        category_products = []
-        try:
-            pages = await parser_101.get_pages(category.url)
-        except Exception:
-            continue
-        for page in pages:
-            log.info("Processing page: %s", page)
+
+    async with HTTPGetAIOHTTP() as http_get:
+        parser_101 = WebstoreParser101TeaRu(http_get=http_get)
+        categories = await parser_101.get_categories()
+        for category in categories:
+            log.info("Processing category: %s", category.name)
+            category_products = []
             try:
-                page_products = await parser_101.get_products(page)
+                pages = await parser_101.get_pages(category.url)
             except Exception:
                 continue
-            category_products += page_products
-        all_products += category_products
+            for page in pages:
+                log.info("Processing page: %s", page)
+                try:
+                    page_products = await parser_101.get_products(page)
+                except Exception:
+                    continue
+                category_products += page_products
+            all_products += categery_products
 
     # remove duplicate products based on product.url
     unique_products = {p.url: p for p in all_products}.values()
