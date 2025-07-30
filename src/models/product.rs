@@ -33,6 +33,27 @@ impl From<Product> for DomainProduct {
             amount: product.amount,
             description: product.description,
             url: product.url,
+            distance: None,
+            created_at: product.created_at,
+            updated_at: product.updated_at,
+        }
+    }
+}
+
+impl From<(Product, f32)> for DomainProduct {
+    fn from((product, distance): (Product, f32)) -> Self {
+        Self {
+            id: product.id,
+            crawler_id: product.crawler_id,
+            name: product.name,
+            sku: product.sku,
+            category: product.category,
+            units: product.units,
+            price: product.price,
+            amount: product.amount,
+            description: product.description,
+            url: product.url,
+            distance: Some(distance),
             created_at: product.created_at,
             updated_at: product.updated_at,
         }

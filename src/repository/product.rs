@@ -14,6 +14,33 @@ impl<'a> DieselProductRepository<'a> {
     pub fn new(pool: &'a DbPool) -> Self {
         Self { pool }
     }
+
+    /// Retrieve products associated with the given benchmark sorted by distance.
+    pub fn list_for_benchmark_with_distance(
+        &self,
+        benchmark_id: i32,
+    ) -> RepositoryResult<Vec<Product>> {
+        use crate::schema::{product_benchmark, products};
+
+        let mut conn = self.pool.get()?;
+
+        let items: Vec<(DbProduct, f32)> = products::table
+            .inner_join(
+                product_benchmark::table.on(
+                    product_benchmark::product_id
+                        .eq(products::id)
+                        .and(product_benchmark::benchmark_id.eq(benchmark_id)),
+                ),
+            )
+            .select((products::all_columns, product_benchmark::distance))
+            .order(product_benchmark::distance.asc())
+            .load(&mut conn)?;
+
+        Ok(items
+            .into_iter()
+            .map(Into::into)
+            .collect())
+    }
 }
 
 impl ProductReader for DieselProductRepository<'_> {

@@ -15,8 +15,8 @@ use crate::domain::benchmark::NewBenchmark;
 use crate::forms::benchmarks::{AddBenchmarkForm, UploadBenchmarksForm};
 use crate::repository::benchmark::DieselBenchmarkRepository;
 use crate::repository::product::DieselProductRepository;
-use crate::repository::{BenchmarkListQuery, ProductListQuery};
-use crate::repository::{BenchmarkReader, BenchmarkWriter, ProductReader};
+use crate::repository::BenchmarkListQuery;
+use crate::repository::{BenchmarkReader, BenchmarkWriter};
 use crate::routes::render_template;
 
 #[derive(Deserialize)]
@@ -111,13 +111,15 @@ pub async fn show_benchmark(
 
     let product_repo = DieselProductRepository::new(&pool);
 
-    let products = match product_repo.list(ProductListQuery::default().benchmark(benchmark_id)) {
-        Ok((_total, products)) => products,
+    let products = match product_repo.list_for_benchmark_with_distance(benchmark_id) {
+        Ok(products) => products,
         Err(e) => {
             log::error!("Failed to list products: {e}");
             return HttpResponse::InternalServerError().finish();
         }
     };
+
+    context.insert("show_distance", &true);
 
     context.insert("benchmark", &benchmark);
     context.insert("products", &products);

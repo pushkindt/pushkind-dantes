@@ -3,6 +3,8 @@
 {% block content %}
     {% include 'components/navigation.html' %}
 
+    {% set show_distance = false %}
+
     <div class="container bg-white border rounded my-2">
         <h5>Бенчмарк</h5>
         {% include 'components/product_header.html' %}
@@ -13,6 +15,7 @@
     </div>
 
 
+    {% set show_distance = true %}
     <div class="container bg-white border rounded my-2">
         <h5>Товары</h5>
         {% include 'components/product_header.html' %}

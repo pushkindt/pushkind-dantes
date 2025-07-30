@@ -13,6 +13,10 @@ pub struct Product {
     pub amount: Option<f64>,
     pub description: Option<String>,
     pub url: String,
+    /// Similarity distance when associated with a benchmark
+    ///
+    /// This field is optional as most product listings don't include it.
+    pub distance: Option<f32>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
