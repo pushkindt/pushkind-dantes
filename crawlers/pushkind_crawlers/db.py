@@ -2,7 +2,7 @@ import datetime as dt
 
 from pushkind_crawlers.crawler.protocols import Category
 from pushkind_crawlers.crawler.protocols import Product as ParsedProduct
-from sqlalchemy import Column, Float, Integer, String, create_engine, func, select
+from sqlalchemy import Column, Float, Integer, String, create_engine, func, select, delete
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.types import TIMESTAMP
 
@@ -40,6 +40,13 @@ class Product(Base):
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
 
 
+class ProductBenchmark(Base):
+    __tablename__ = "product_benchmark"
+
+    product_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    benchmark_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+
 def save_products(
     db_url: str,
     crawler_selector: str,
@@ -49,6 +56,15 @@ def save_products(
     engine = create_engine(db_url)
     with Session(engine) as session:
         crawler = session.scalars(select(Crawler).where(Crawler.selector == crawler_selector)).one()
+        old_ids = session.scalars(
+            select(Product.id).where(Product.crawler_id == crawler.id)
+        ).all()
+        if old_ids:
+            session.execute(
+                delete(ProductBenchmark).where(
+                    ProductBenchmark.product_id.in_(old_ids)
+                )
+            )
         session.query(Product).filter(Product.crawler_id == crawler.id).delete()
         for product in products:
             session.add(
