@@ -1,25 +1,21 @@
 import datetime as dt
 
-from typing import Iterable
-
-from pushkind_crawlers.crawler.protocols import Category
+import faiss
+import numpy as np
 from pushkind_crawlers.crawler.protocols import Product as ParsedProduct
+from sentence_transformers import SentenceTransformer
 from sqlalchemy import (
     Column,
     Float,
     Integer,
     String,
     create_engine,
+    delete,
     func,
     select,
-    delete,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.types import TIMESTAMP
-
-from sentence_transformers import SentenceTransformer
-import faiss
-import numpy as np
 
 
 class Base(DeclarativeBase):
@@ -86,6 +82,9 @@ def save_products(
     engine = create_engine(db_url)
     with Session(engine) as session:
         crawler = session.scalars(select(Crawler).where(Crawler.selector == crawler_selector)).one()
+        old_ids = session.scalars(select(Product.id).where(Product.crawler_id == crawler.id)).all()
+        if old_ids:
+            session.execute(delete(ProductBenchmark).where(ProductBenchmark.product_id.in_(old_ids)))
         session.query(Product).filter(Product.crawler_id == crawler.id).delete()
         for product in products:
             session.add(
@@ -113,11 +112,11 @@ def save_products(
 
 def _prompt(name: str, category: str | None, description: str | None, units: str | None, amount: float | None) -> str:
     return (
-        f"\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435: {name}\n"
-        f"\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f: {category or ''}\n"
-        f"\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435: {description or ''}\n"
-        f"\u0415\u0434\u0438\u043d\u0438\u0446\u044b: {units or ''}\n"
-        f"\u041e\u0431\u044a\u0435\u043c \u0443\u043f\u0430\u043a\u043e\u0432\u043a\u0438: {amount or ''}"
+        f"Название: {name}\n"
+        f"Категория: {category or ''}\n"
+        f"Описание: {description or ''}\n"
+        f"Единицы: {units or ''}\n"
+        f"Объём: {amount or ''}"
     )
 
 
@@ -130,25 +129,14 @@ def update_benchmark_associations(db_url: str, crawler_selector: str) -> None:
         if not products:
             return
 
-        product_ids = [p.id for p in products]
-
-        session.execute(
-            delete(ProductBenchmark).where(ProductBenchmark.product_id.in_(product_ids))
-        )
-
         benchmarks = session.scalars(select(Benchmark)).all()
         if not benchmarks:
-            session.commit()
             return
 
-        model = SentenceTransformer("paraphrase-multilingual-mpnet-base-v2")
+        model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
 
-        product_texts = [
-            _prompt(p.name, p.category, p.description, p.units, p.amount) for p in products
-        ]
-        benchmark_texts = [
-            _prompt(b.name, b.category, b.description, b.units, b.amount) for b in benchmarks
-        ]
+        product_texts = [_prompt(p.name, p.category, p.description, p.units, p.amount) for p in products]
+        benchmark_texts = [_prompt(b.name, b.category, b.description, b.units, b.amount) for b in benchmarks]
 
         prod_emb = model.encode(product_texts, normalize_embeddings=True)
         bench_emb = model.encode(benchmark_texts, normalize_embeddings=True)
