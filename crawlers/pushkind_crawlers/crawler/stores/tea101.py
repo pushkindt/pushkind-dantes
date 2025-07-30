@@ -123,7 +123,7 @@ async def parse_101tea() -> list[Product]:
                 except Exception:
                     continue
                 category_products += page_products
-            all_products += categery_products
+            all_products += category_products
 
     # remove duplicate products based on product.url
     unique_products = {p.url: p for p in all_products}.values()
