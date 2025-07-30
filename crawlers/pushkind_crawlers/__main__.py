@@ -6,7 +6,7 @@ import zmq
 import zmq.asyncio
 from dotenv import load_dotenv
 from pushkind_crawlers.crawler.stores.tea101 import parse_101tea
-from pushkind_crawlers.db import save_products, turn_off_processing
+from pushkind_crawlers.db import save_products
 
 ctx = zmq.asyncio.Context()
 log = logging.getLogger(__name__)
@@ -34,7 +34,6 @@ async def consumer(zmq_address: str, db_url: str):
                 log.info("Handling: %s", crawler_selector)
                 products = await crawlers_map[crawler_selector]()
                 save_products(db_url, crawler_selector, products)
-                turn_off_processing(db_url, crawler_selector)
                 log.info("Done processing: %s → %d products", crawler_selector, len(products))
             else:
                 log.error("Unknown crawler: %s", crawler_selector)

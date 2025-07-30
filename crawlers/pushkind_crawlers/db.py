@@ -20,6 +20,7 @@ class Crawler(Base):
     selector: Mapped[str] = mapped_column(nullable=False)
     processing: Mapped[bool] = mapped_column(nullable=False, default=False)
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+    num_products: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
 class Product(Base):
@@ -37,16 +38,6 @@ class Product(Base):
     url: Mapped[str] = mapped_column(String, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
-
-
-def turn_off_processing(db_url: str, crawler_selector: str):
-    engine = create_engine(db_url)
-    with Session(engine) as session:
-        stmt = select(Crawler).where(Crawler.selector == crawler_selector)
-        crawler = session.scalars(stmt).one()
-        crawler.processing = False
-        crawler.updated_at = dt.datetime.now()  # type: ignore
-        session.commit()
 
 
 def save_products(
@@ -73,4 +64,11 @@ def save_products(
                     url=product.url,
                 )
             )
+        session.query(Crawler).filter(Crawler.selector == crawler_selector).update(
+            {
+                "num_products": len(products),
+                "processing": False,
+                "updated_at": dt.datetime.now(),
+            }
+        )
         session.commit()

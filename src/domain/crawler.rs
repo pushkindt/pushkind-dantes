@@ -10,4 +10,5 @@ pub struct Crawler {
     pub selector: String,
     pub processing: bool,
     pub updated_at: NaiveDateTime,
+    pub num_products: i32,
 }
