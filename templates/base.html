@@ -85,6 +85,12 @@
                             document.location.href = `${selectableKind}/${selectableId}`;
                     });
                 });
+
+                document.querySelectorAll('.text-truncate').forEach(element => {
+                    element.addEventListener('click', () => {
+                    element.classList.remove('text-truncate');
+                    });
+                });
             });
 
             function createFilter(filterInputId, itemContainerId, itemSelector) {
