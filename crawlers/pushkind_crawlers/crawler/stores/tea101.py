@@ -54,11 +54,13 @@ class WebstoreParser101TeaRu:
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
         products = []
-        for res in results:
-            if isinstance(res, Product):
-                products.append(res)
-            elif isinstance(res, Exception):
-                log.warning("Error parsing product: %s", res)
+            for res in results:
+                if isinstance(res, Product):
+                    products.append(res)
+                elif isinstance(res, Exception):
+                    # repr() ensures that even exceptions without a message
+                    # provide useful information about their type
+                    log.warning("Error parsing product: %r", res)
         return products
 
     async def get_categories(self) -> list[Category]:
@@ -109,7 +111,7 @@ async def parse_101tea() -> list[Product]:
             try:
                 pages = await parser_101.get_pages(category.url)
             except Exception as e:
-                log.warning("Failed to get pages for %s: %s", category.name, e)
+                log.warning("Failed to get pages for %s: %r", category.name, e)
                 return []
 
             page_tasks = [parser_101.get_products(page) for page in pages]
@@ -119,7 +121,10 @@ async def parse_101tea() -> list[Product]:
                 if isinstance(res, list):
                     products.extend(res)
                 elif isinstance(res, Exception):
-                    log.warning("Error parsing page in %s: %s", category.name, res)
+                    # use %r to include exception type when message is empty
+                    log.warning(
+                        "Error parsing page in %s: %r", category.name, res
+                    )
             return products
 
         category_tasks = [process_category(cat) for cat in categories]
