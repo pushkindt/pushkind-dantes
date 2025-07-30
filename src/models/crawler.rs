@@ -13,6 +13,7 @@ pub struct Crawler {
     pub selector: String,
     pub processing: bool,
     pub updated_at: NaiveDateTime,
+    pub num_products: i32,
 }
 
 impl From<Crawler> for DomainCrawler {
@@ -25,6 +26,7 @@ impl From<Crawler> for DomainCrawler {
             selector: crawler.selector,
             processing: crawler.processing,
             updated_at: crawler.updated_at,
+            num_products: crawler.num_products,
         }
     }
 }

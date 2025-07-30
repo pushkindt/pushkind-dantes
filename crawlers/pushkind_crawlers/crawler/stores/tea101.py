@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from urllib.parse import urljoin
@@ -18,59 +19,50 @@ class WebstoreParser101TeaRu:
     async def get_product(self, url: str) -> Product | None:
         status, response = await self.http_get.get(url)
         if status != 200:
-            return None
+            raise ValueError(f"Failed to get product {url}. HTTP status: {status}")
         soup = BeautifulSoup(response, "html.parser")
-        try:
-            return Product(
-                sku=soup.find("div", {"class": "product_art"}).find_all("span")[1].text.strip(),  # type: ignore
-                name=soup.find("h1", {"itemprop": "name"}).text.strip(),  # type: ignore
-                price=soup.find("span", {"class": "js-price-val"}).text.replace(" ", ""),  # type: ignore
-                category=re.sub("\n+", "/", soup.find("div", {"class": "breadcrumbs"}).text.strip()),  # type: ignore
-                units=soup.find("span", {"class": "product-card__calculus-unit"}).text.strip(),  # type: ignore
-                amount=soup.find("span", {"class": "js-product-calc-value product-card__calculus-value"}).text.replace(" ", ""),  # type: ignore
-                description=soup.find("div", {"data-js-catalog-tab-id": "about_product"}).text.strip(),  # type: ignore
-                url=url,
-            )
-        except Exception as e:
-            log.error(f"Error parsing product {url}: {e}")
-            return None
+        return Product(
+            sku=soup.find("div", {"class": "product_art"}).find_all("span")[1].text.strip(),  # type: ignore
+            name=soup.find("h1", {"itemprop": "name"}).text.strip(),  # type: ignore
+            price=soup.find("span", {"class": "js-price-val"}).text.replace(" ", ""),  # type: ignore
+            category=re.sub("\n+", "/", soup.find("div", {"class": "breadcrumbs"}).text.strip()),  # type: ignore
+            units=soup.find("span", {"class": "product-card__calculus-unit"}).text.strip(),  # type: ignore
+            amount=soup.find("span", {"class": "js-product-calc-value product-card__calculus-value"}).text.replace(" ", ""),  # type: ignore
+            description=soup.find("div", {"data-js-catalog-tab-id": "about_product"}).text.strip(),  # type: ignore
+            url=url,
+        )
 
     async def get_products(self, url: str) -> list[Product]:
         status, response = await self.http_get.get(url)
         if status != 200:
-            return []
+            raise ValueError(f"Failed to get products {url}. HTTP status: {status}")
 
         soup = BeautifulSoup(response, "html.parser")
         product_cards = soup.find_all("div", {"class": "product-card"})
-        products = []
 
+        tasks = []
         for card in product_cards:
-            # Extract product name
             name_tag = card.find("p", class_="product-card__name")  # type: ignore
-            name = name_tag.get_text(strip=True) if name_tag else "Unknown"
-
-            # Extract product URL to derive SKU
-            link_tag = name_tag.parent  # type: ignore
-            href = str(link_tag.get("href"))  # type: ignore
-
+            href = str(name_tag.parent.get("href"))  # type: ignore
             if not href:
-                log.warning(f"Product {name} has no href")
                 continue
+            tasks.append(self.get_product(urljoin(self.base_url, href)))
 
-            product = await self.get_product(urljoin(self.base_url, href))
-
-            if not product:
-                log.warning(f"Product {name} at {href} cannot be parsed")
-                continue
-
-            products.append(product)  # type: ignore
-
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        products = []
+        for res in results:
+            if isinstance(res, Product):
+                products.append(res)
+            elif isinstance(res, Exception):
+                # repr() ensures that even exceptions without a message
+                # provide useful information about their type
+                log.warning("Error parsing product: %r", res)
         return products
 
     async def get_categories(self) -> list[Category]:
         status, response = await self.http_get.get(self.base_url)
         if status != 200:
-            return []
+            raise ValueError(f"Failed to get base_url {self.base_url}. HTTP status: {status}")
         soup = BeautifulSoup(response, "html.parser")
         category_links = soup.find_all("a", {"class": "catalog-nav__link"})
         result = [
@@ -105,24 +97,34 @@ class WebstoreParser101TeaRu:
 
 async def parse_101tea() -> list[Product]:
     all_products = []
-    parser_101 = WebstoreParser101TeaRu(http_get=HTTPGetAIOHTTP())
-    categories = await parser_101.get_categories()
-    for category in categories:
-        log.info("Processing category: %s", category.name)
-        categery_products = []
-        try:
-            pages = await parser_101.get_pages(category.url)
-        except Exception:
-            continue
-        for page in pages:
-            log.info("Processing page: %s", page)
-            try:
-                page_products = await parser_101.get_products(page)
-            except Exception:
-                continue
-            categery_products += page_products
-        all_products += categery_products
 
-    # remove duplicate products based on product.url
+    async with HTTPGetAIOHTTP(max_concurrency=5) as http_get:
+        parser_101 = WebstoreParser101TeaRu(http_get=http_get)
+        categories = await parser_101.get_categories()
+
+        async def process_category(category: Category) -> list[Product]:
+            log.info("Processing category: %s", category.name)
+            try:
+                pages = await parser_101.get_pages(category.url)
+            except Exception as e:
+                log.warning("Failed to get pages for %s: %r", category.name, e)
+                return []
+
+            page_tasks = [parser_101.get_products(page) for page in pages]
+            results = await asyncio.gather(*page_tasks, return_exceptions=True)
+            products: list[Product] = []
+            for res in results:
+                if isinstance(res, list):
+                    products.extend(res)
+                elif isinstance(res, Exception):
+                    # use %r to include exception type when message is empty
+                    log.warning("Error parsing page in %s: %r", category.name, res)
+            return products
+
+        category_tasks = [process_category(cat) for cat in categories]
+        categories_results = await asyncio.gather(*category_tasks)
+        for cat_products in categories_results:
+            all_products.extend(cat_products)
+
     unique_products = {p.url: p for p in all_products}.values()
     return list(unique_products)

@@ -13,6 +13,9 @@
                 Дата последнего сканирования
             </div>
             <div class="col overflow-hidden">
+                Товаров
+            </div>
+            <div class="col overflow-hidden">
                 Обработка
             </div>
         </div>
@@ -23,6 +26,9 @@
                 </div>
                 <div class="col overflow-hidden">
                     {{crawler.updated_at | date(format="%Y-%m-%d %H:%M")}}
+                </div>
+                <div class="col overflow-hidden">
+                    {{crawler.num_products}}
                 </div>
                 <div class="col overflow-hidden">
                     <form method="POST" action="/process/{{crawler.id}}">
