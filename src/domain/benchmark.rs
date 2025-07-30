@@ -14,6 +14,7 @@ pub struct Benchmark {
     pub description: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub embedding: Vec<f32>,
 }
 
 pub struct NewBenchmark {
@@ -27,4 +28,5 @@ pub struct NewBenchmark {
     pub description: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub embedding: Vec<f32>,
 }

@@ -39,6 +39,7 @@ impl From<AddBenchmarkForm> for NewBenchmark {
             description: form.description,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
+            embedding: vec![]
         }
     }
 }
@@ -103,6 +104,7 @@ impl UploadBenchmarksForm {
                 description: row.description,
                 created_at: Utc::now().naive_utc(),
                 updated_at: Utc::now().naive_utc(),
+                embedding: vec![]
             });
         }
 

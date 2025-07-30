@@ -17,6 +17,7 @@ pub struct Benchmark {
     pub description: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub embedding: Vec<u8>,
 }
 
 #[derive(Insertable)]
@@ -32,6 +33,7 @@ pub struct NewBenchmark<'a> {
     pub description: &'a str,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub embedding: Vec<u8>,
 }
 
 impl From<Benchmark> for DomainBenchmark {
@@ -48,6 +50,11 @@ impl From<Benchmark> for DomainBenchmark {
             description: benchmark.description,
             created_at: benchmark.created_at,
             updated_at: benchmark.updated_at,
+            embedding: benchmark
+                .embedding
+                .chunks_exact(4)
+                .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+                .collect(),
         }
     }
 }
@@ -65,6 +72,11 @@ impl<'a> From<&'a DomainNewBenchmark> for NewBenchmark<'a> {
             description: benchmark.description.as_str(),
             created_at: benchmark.created_at,
             updated_at: benchmark.updated_at,
+            embedding: benchmark
+                .embedding
+                .iter()
+                .flat_map(|f| f.to_le_bytes())
+                .collect::<Vec<u8>>(),
         }
     }
 }

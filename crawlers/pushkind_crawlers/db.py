@@ -52,6 +52,7 @@ class Product(Base):
     url: Mapped[str] = mapped_column(String, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+    embedding: Mapped[list[float]] = mapped_column(nullable=False)
 
 
 class Benchmark(Base):
@@ -68,6 +69,7 @@ class Benchmark(Base):
     description: Mapped[str] = mapped_column(String, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+    embedding: Mapped[list[float]] = mapped_column(nullable=False)
 
 
 class ProductBenchmark(Base):

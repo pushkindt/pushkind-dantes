@@ -18,6 +18,7 @@ pub struct Product {
     pub url: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub embedding: Vec<u8>,
 }
 
 impl From<Product> for DomainProduct {
