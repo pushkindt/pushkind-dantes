@@ -1,4 +1,5 @@
 import datetime as dt
+import logging
 
 import faiss
 import numpy as np
@@ -16,6 +17,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.types import TIMESTAMP
+
+log = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -71,6 +74,7 @@ class ProductBenchmark(Base):
     __tablename__ = "product_benchmark"
     product_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     benchmark_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    distance: Mapped[float] = mapped_column(Float, nullable=False)
 
 
 def save_products(
@@ -150,14 +154,17 @@ def update_benchmark_associations(db_url: str, crawler_selector: str) -> None:
         k = min(10, len(products))
         distances, indices = index.search(bench_emb, k)
 
-        for b_idx, prod_idxs in enumerate(indices):
+        threshold = 0.75
+        for b_idx, (prod_idxs, dist_row) in enumerate(zip(indices, distances)):
             benchmark_id = benchmarks[b_idx].id
-            for p_idx in prod_idxs:
-                session.add(
-                    ProductBenchmark(
-                        product_id=products[p_idx].id,
-                        benchmark_id=benchmark_id,
+            for p_idx, distance in zip(prod_idxs, dist_row):
+                if distance >= threshold:
+                    session.add(
+                        ProductBenchmark(
+                            product_id=products[p_idx].id,
+                            benchmark_id=benchmark_id,
+                            distance=float(distance),
+                        )
                     )
-                )
 
         session.commit()
