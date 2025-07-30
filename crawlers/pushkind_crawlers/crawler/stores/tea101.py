@@ -109,7 +109,7 @@ async def parse_101tea() -> list[Product]:
     categories = await parser_101.get_categories()
     for category in categories:
         log.info("Processing category: %s", category.name)
-        categery_products = []
+        category_products = []
         try:
             pages = await parser_101.get_pages(category.url)
         except Exception:
@@ -120,8 +120,8 @@ async def parse_101tea() -> list[Product]:
                 page_products = await parser_101.get_products(page)
             except Exception:
                 continue
-            categery_products += page_products
-        all_products += categery_products
+            category_products += page_products
+        all_products += category_products
 
     # remove duplicate products based on product.url
     unique_products = {p.url: p for p in all_products}.values()
