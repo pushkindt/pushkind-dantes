@@ -7,16 +7,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from sqlalchemy.types import TIMESTAMP
 
 
-def turn_off_processing(db_url: str, crawler_id: str):
-    engine = create_engine(db_url)
-    with Session(engine) as session:
-        stmt = select(Crawler).where(Crawler.selector == crawler_id)
-        crawler = session.scalars(stmt).one()
-        crawler.processing = False
-        crawler.updated_at = dt.datetime.now()  # type: ignore
-        session.commit()
-
-
 class Base(DeclarativeBase):
     pass
 
@@ -47,6 +37,16 @@ class Product(Base):
     url: Mapped[str] = mapped_column(String, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+
+
+def turn_off_processing(db_url: str, crawler_selector: str):
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        stmt = select(Crawler).where(Crawler.selector == crawler_selector)
+        crawler = session.scalars(stmt).one()
+        crawler.processing = False
+        crawler.updated_at = dt.datetime.now()  # type: ignore
+        session.commit()
 
 
 def save_products(
