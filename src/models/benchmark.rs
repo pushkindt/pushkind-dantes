@@ -2,6 +2,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
 use crate::domain::benchmark::{Benchmark as DomainBenchmark, NewBenchmark as DomainNewBenchmark};
+use crate::embedding::PromptEmbedding;
 
 #[derive(Debug, Clone, Identifiable, Queryable)]
 #[diesel(table_name = crate::schema::benchmarks)]
@@ -34,6 +35,36 @@ pub struct NewBenchmark<'a> {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub embedding: Vec<u8>,
+}
+
+impl PromptEmbedding for Benchmark {
+    fn prompt(&self) -> String {
+        format!(
+            "Name: {}\nSKU: {}\nCategory: {}\nUnits: {}\nPrice: {}\nAmount: {}\nDescription: {}",
+            self.name,
+            self.sku,
+            self.category,
+            self.units,
+            self.price,
+            self.amount,
+            self.description
+        )
+    }
+}
+
+impl PromptEmbedding for NewBenchmark<'_> {
+    fn prompt(&self) -> String {
+        format!(
+            "Name: {}\nSKU: {}\nCategory: {}\nUnits: {}\nPrice: {}\nAmount: {}\nDescription: {}",
+            self.name,
+            self.sku,
+            self.category,
+            self.units,
+            self.price,
+            self.amount,
+            self.description
+        )
+    }
 }
 
 impl From<Benchmark> for DomainBenchmark {

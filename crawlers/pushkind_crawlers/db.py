@@ -4,7 +4,7 @@ import logging
 import faiss
 import numpy as np
 from pushkind_crawlers.crawler.protocols import Product as ParsedProduct
-from sentence_transformers import SentenceTransformer
+from pushkind_crawlers.embedding import prompt_to_embedding
 from sqlalchemy import (
     Column,
     Float,
@@ -104,6 +104,9 @@ def save_products(
                     amount=product.amount,
                     description=product.description,
                     url=product.url,
+                    embedding=prompt_to_embedding(
+                        product.name, product.category, product.description, product.units, product.amount
+                    ),
                 )
             )
         session.query(Crawler).filter(Crawler.selector == crawler_selector).update(
