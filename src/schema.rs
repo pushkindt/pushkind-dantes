@@ -13,6 +13,7 @@ diesel::table! {
         description -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        embedding -> Binary,
     }
 }
 
@@ -51,6 +52,7 @@ diesel::table! {
         url -> Text,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        embedding -> Binary,
     }
 }
 

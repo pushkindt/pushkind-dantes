@@ -1,0 +1,3 @@
+-- Your SQL goes here
+ALTER TABLE benchmarks ADD COLUMN embedding BLOB NOT NULL DEFAULT X'00';
+ALTER TABLE products ADD COLUMN embedding BLOB NOT NULL DEFAULT X'00';
