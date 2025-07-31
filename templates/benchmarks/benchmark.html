@@ -4,7 +4,12 @@
     {% include 'components/navigation.html' %}
 
     <div class="container bg-white border rounded my-2">
-        <h5>Бенчмарк</h5>
+        <form method="POST" action="/benchmark/{{benchmark.id}}/process">
+            <h5>Бенчмарк</h5>
+            <button type="sumbit" class="btn btn-success">
+                Обработка
+            </button>
+        </form>
         {% include 'components/product_header.html' %}
 
         {% set product = benchmark %}

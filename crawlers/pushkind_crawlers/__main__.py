@@ -30,13 +30,17 @@ async def consumer(zmq_address: str, db_url: str):
 
     async def handle_message(crawler_selector: str):
         try:
-            if crawler_selector in crawlers_map:
-                log.info("Handling: %s", crawler_selector)
+            if crawler_selector.isnumeric():
+                log.info("Handling benchmark: %s", crawler_selector)
+                update_benchmark_associations(db_url, benchmark_id=int(crawler_selector))
+                log.info("Done processing: %s", crawler_selector)
+            elif crawler_selector in crawlers_map:
+                log.info("Handling crawler: %s", crawler_selector)
                 products = []
-                # products = await crawlers_map[crawler_selector]()
-                # save_products(db_url, crawler_selector, products)
-                # if products:
-                update_benchmark_associations(db_url, crawler_selector)
+                products = await crawlers_map[crawler_selector]()
+                save_products(db_url, crawler_selector, products)
+                if products:
+                    update_benchmark_associations(db_url, crawler_selector)
                 log.info("Done processing: %s → %d products", crawler_selector, len(products))
             else:
                 log.error("Unknown crawler: %s", crawler_selector)

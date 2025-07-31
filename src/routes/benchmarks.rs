@@ -7,12 +7,14 @@ use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
 use pushkind_common::pagination::Paginated;
 use pushkind_common::routes::{alert_level_to_str, ensure_role, redirect};
+use pushkind_common::zmq::send_zmq_message;
 use serde::Deserialize;
 use tera::Context;
 use validator::Validate;
 
 use crate::domain::benchmark::NewBenchmark;
 use crate::forms::benchmarks::{AddBenchmarkForm, UploadBenchmarksForm};
+use crate::models::config::ServerConfig;
 use crate::repository::benchmark::DieselBenchmarkRepository;
 use crate::repository::product::DieselProductRepository;
 use crate::repository::{BenchmarkListQuery, ProductListQuery};
@@ -153,6 +155,30 @@ pub async fn add_benchmark(
             FlashMessage::error("Ошибка при добавлении бенчмарка").send();
         }
     }
+    redirect("/benchmarks")
+}
+
+#[post("/benchmark/{benchmark_id}/process")]
+pub async fn process_benchmark(
+    benchmark_id: web::Path<i32>,
+    user: AuthenticatedUser,
+    server_config: web::Data<ServerConfig>,
+) -> impl Responder {
+    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
+        return response;
+    };
+
+    let benchmark_id = format!("{}", benchmark_id.into_inner());
+    match send_zmq_message(benchmark_id.as_bytes(), &server_config.zmq_address) {
+        Ok(_) => {
+            FlashMessage::success("Обработка запущена").send();
+        }
+        Err(e) => {
+            log::error!("Failed to send ZMQ message: {e}");
+            FlashMessage::error("Не удалось начать обработку.").send();
+        }
+    }
+
     redirect("/benchmarks")
 }
 
