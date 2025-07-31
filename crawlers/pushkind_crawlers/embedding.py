@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 from fastembed import TextEmbedding
 
 _model: TextEmbedding | None = None
@@ -8,17 +9,24 @@ _model: TextEmbedding | None = None
 def _get_model() -> TextEmbedding:
     global _model
     if _model is None:
-        _model = TextEmbedding(
-            "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
-        )
+        _model = TextEmbedding("sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
     return _model
+
+
+def normalize_embedding(embedding: list[float]) -> list[float]:
+    """Normalize an embedding vector."""
+    norm = np.linalg.norm(embedding)
+    if norm == 0.0:
+        return embedding
+    normalized_embedding = embedding / norm
+    return normalized_embedding.tolist()
 
 
 def prompt_to_embedding(prompt: str) -> list[float]:
     """Convert a text prompt to an embedding vector."""
     model = _get_model()
     embedding = next(model.embed([prompt]))
-    return embedding.tolist()
+    return normalize_embedding(embedding)
 
 
 if __name__ == "__main__":

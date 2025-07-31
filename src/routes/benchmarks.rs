@@ -120,9 +120,17 @@ pub async fn show_benchmark(
             return HttpResponse::InternalServerError().finish();
         }
     };
+    let distances = match product_repo.list_distances(benchmark_id) {
+        Ok(distances) => distances,
+        Err(e) => {
+            log::error!("Failed to list distances: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
 
     context.insert("benchmark", &benchmark);
     context.insert("products", &products);
+    context.insert("distances", &distances);
 
     render_template("benchmarks/benchmark.html", &context)
 }

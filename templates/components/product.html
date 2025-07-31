@@ -1,4 +1,9 @@
 <div class="row my-1 py-1 border-top product {%if product_kind%}selectable{%endif%}" data-id={{product.id}} data-kind="{{product_kind | default(value="") }}">
+    {% if distances %}
+    <div class="col overflow-hidden">
+        {{distances[product.id] | default(value=1) | round(method="ceil", precision=2)}}
+    </div>
+    {% endif %}
     <div class="col overflow-hidden">
         {{product.name}}
     </div>
