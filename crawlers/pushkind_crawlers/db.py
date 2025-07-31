@@ -179,6 +179,9 @@ def update_benchmark_associations(
         if not products:
             return
 
+        prod_ids = [p.id for p in products]
+        session.execute(delete(ProductBenchmark).where(ProductBenchmark.product_id.in_(prod_ids)))
+
         benchmarks = session.scalars(benchmark_query).all()
         if not benchmarks:
             return
