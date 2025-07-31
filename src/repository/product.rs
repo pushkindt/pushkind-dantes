@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use diesel::prelude::*;
 use pushkind_common::db::DbPool;
 use pushkind_common::repository::errors::RepositoryResult;
@@ -17,6 +19,20 @@ impl<'a> DieselProductRepository<'a> {
 }
 
 impl ProductReader for DieselProductRepository<'_> {
+    fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>> {
+        use crate::schema::product_benchmark;
+
+        let mut conn = self.pool.get()?;
+
+        let items: Vec<(i32, f32)> = product_benchmark::table
+            .filter(product_benchmark::benchmark_id.eq(benchmark_id))
+            .select((product_benchmark::product_id, product_benchmark::distance))
+            .order(product_benchmark::distance.asc())
+            .load(&mut conn)?;
+
+        Ok(items.into_iter().collect())
+    }
+
     fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
         use crate::schema::{product_benchmark, products};
 

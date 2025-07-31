@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use pushkind_common::pagination::Pagination;
 use pushkind_common::repository::errors::RepositoryResult;
 
@@ -61,6 +63,7 @@ pub trait CrawlerWriter {
 
 pub trait ProductReader {
     fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
+    fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>>;
 }
 
 pub trait ProductWriter {}
