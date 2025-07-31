@@ -33,6 +33,7 @@ async def consumer(zmq_address: str, db_url: str):
             if crawler_selector.isnumeric():
                 log.info("Handling benchmark: %s", crawler_selector)
                 update_benchmark_associations(db_url, benchmark_id=int(crawler_selector))
+                log.info("Done processing: %s", crawler_selector)
             elif crawler_selector in crawlers_map:
                 log.info("Handling crawler: %s", crawler_selector)
                 products = []
