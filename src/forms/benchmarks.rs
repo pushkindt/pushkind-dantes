@@ -8,7 +8,6 @@ use thiserror::Error;
 use validator::Validate;
 
 use crate::domain::benchmark::NewBenchmark;
-use crate::embedding::PromptEmbedding;
 
 #[derive(Deserialize, Validate)]
 pub struct AddBenchmarkForm {
@@ -27,24 +26,8 @@ pub struct AddBenchmarkForm {
     pub description: String,
 }
 
-impl PromptEmbedding for AddBenchmarkForm {
-    fn prompt(&self) -> String {
-        format!(
-            "Name: {}\nSKU: {}\nCategory: {}\nUnits: {}\nPrice: {}\nAmount: {}\nDescription: {}",
-            self.name,
-            self.sku,
-            self.category,
-            self.units,
-            self.price,
-            self.amount,
-            self.description
-        )
-    }
-}
-
 impl From<AddBenchmarkForm> for NewBenchmark {
     fn from(form: AddBenchmarkForm) -> Self {
-        let embeddings = form.embeddings().unwrap_or_default();
         Self {
             hub_id: form.hub_id,
             name: form.name,
@@ -56,7 +39,6 @@ impl From<AddBenchmarkForm> for NewBenchmark {
             description: form.description,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
-            embedding: embeddings,
         }
     }
 }
@@ -98,21 +80,6 @@ struct CsvBenchmarkRow {
     pub description: String,
 }
 
-impl PromptEmbedding for CsvBenchmarkRow {
-    fn prompt(&self) -> String {
-        format!(
-            "Name: {}\nSKU: {}\nCategory: {}\nUnits: {}\nPrice: {}\nAmount: {}\nDescription: {}",
-            self.name,
-            self.sku,
-            self.category,
-            self.units,
-            self.price,
-            self.amount,
-            self.description
-        )
-    }
-}
-
 impl UploadBenchmarksForm {
     pub fn parse(&mut self, hub_id: i32) -> Result<Vec<NewBenchmark>, UploadBenchmarksFormError> {
         let mut csv_content = String::new();
@@ -125,7 +92,6 @@ impl UploadBenchmarksForm {
         for result in rdr.deserialize::<CsvBenchmarkRow>() {
             let row = result?;
 
-            let embedding = row.embeddings().unwrap_or_default();
             benchmarks.push(NewBenchmark {
                 hub_id,
                 name: row.name,
@@ -137,7 +103,6 @@ impl UploadBenchmarksForm {
                 description: row.description,
                 created_at: Utc::now().naive_utc(),
                 updated_at: Utc::now().naive_utc(),
-                embedding,
             });
         }
 

@@ -16,9 +16,23 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
-from sqlalchemy.types import TIMESTAMP
+from sqlalchemy.types import BLOB, TIMESTAMP, TypeDecorator
 
 log = logging.getLogger(__name__)
+
+
+class FloatVectorType(TypeDecorator):
+    impl = BLOB
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        return np.asarray(value, dtype=np.float32).tobytes()
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
 
 
 class Base(DeclarativeBase):
@@ -52,7 +66,7 @@ class Product(Base):
     url: Mapped[str] = mapped_column(String, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
-    embedding: Mapped[list[float]] = mapped_column(nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(FloatVectorType(), nullable=True)
 
 
 class Benchmark(Base):
@@ -69,7 +83,7 @@ class Benchmark(Base):
     description: Mapped[str] = mapped_column(String, nullable=False)
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
-    embedding: Mapped[list[float]] = mapped_column(nullable=False)
+    embedding: Mapped[list[float] | None] = mapped_column(FloatVectorType(), nullable=True)
 
 
 class ProductBenchmark(Base):
@@ -105,7 +119,15 @@ def save_products(
                     description=product.description,
                     url=product.url,
                     embedding=prompt_to_embedding(
-                        product.name, product.category, product.description, product.units, product.amount
+                        _prompt(
+                            product.name,
+                            product.sku,
+                            product.category,
+                            product.units,
+                            product.price,
+                            product.amount,
+                            product.description,
+                        )
                     ),
                 )
             )
@@ -119,47 +141,74 @@ def save_products(
         session.commit()
 
 
-def _prompt(name: str, category: str | None, description: str | None, units: str | None, amount: float | None) -> str:
-    return (
-        f"Название: {name}\n"
-        f"Категория: {category or ''}\n"
-        f"Описание: {description or ''}\n"
-        f"Единицы: {units or ''}\n"
-        f"Объём: {amount or ''}"
-    )
+def _prompt(
+    name: str,
+    sku: str,
+    category: str | None,
+    units: str | None,
+    price: float,
+    amount: float | None,
+    description: str | None,
+) -> str:
+    return f"Name: {name}\nSKU: {sku}\nCategory: {category or ''}\nUnits: {units or ''}\nPrice: {price}\nAmount: {amount or ''}\nDescription: {description or ''}"
 
 
-def update_benchmark_associations(db_url: str, crawler_selector: str) -> None:
+def update_benchmark_associations(
+    db_url: str, crawler_selector: str | None = None, benchmark_id: int | None = None
+) -> None:
+
+    if crawler_selector is None and benchmark_id is None:
+        raise ValueError("Either crawler_selector or benchmark_id must be provided")
+
+    if crawler_selector is not None and benchmark_id is not None:
+        raise ValueError("Only one of crawler_selector or benchmark_id must be provided")
+
     engine = create_engine(db_url)
     with Session(engine) as session:
-        crawler = session.scalars(select(Crawler).where(Crawler.selector == crawler_selector)).one()
 
-        products = session.scalars(select(Product).where(Product.crawler_id == crawler.id)).all()
+        product_query = select(Product)
+        if crawler_selector is not None:
+            crawler = session.scalars(select(Crawler).where(Crawler.selector == crawler_selector)).one()
+            product_query = product_query.where(Product.crawler_id == crawler.id)
+
+        benchmark_query = select(Benchmark)
+        if benchmark_id is not None:
+            benchmark_query = benchmark_query.where(Benchmark.id == benchmark_id)
+
+        products = session.scalars(product_query).all()
         if not products:
             return
 
-        benchmarks = session.scalars(select(Benchmark)).all()
+        benchmarks = session.scalars(benchmark_query).all()
         if not benchmarks:
             return
 
-        model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
+        prod_emb = []
+        for p in products:
+            if p.embedding is None:
+                p.embedding = prompt_to_embedding(
+                    _prompt(p.name, p.sku, p.category, p.units, p.price, p.amount, p.description)
+                )
+            prod_emb.append(p.embedding)
 
-        product_texts = [_prompt(p.name, p.category, p.description, p.units, p.amount) for p in products]
-        benchmark_texts = [_prompt(b.name, b.category, b.description, b.units, b.amount) for b in benchmarks]
-
-        prod_emb = model.encode(product_texts, normalize_embeddings=True)
-        bench_emb = model.encode(benchmark_texts, normalize_embeddings=True)
+        bench_emb = []
+        for b in benchmarks:
+            if b.embedding is None:
+                b.embedding = prompt_to_embedding(
+                    _prompt(b.name, b.sku, b.category, b.units, b.price, b.amount, b.description)
+                )
+            bench_emb.append(b.embedding)
 
         prod_emb = np.array(prod_emb, dtype="float32")
         bench_emb = np.array(bench_emb, dtype="float32")
 
         index = faiss.IndexFlatIP(prod_emb.shape[1])
-        index.add(prod_emb)
+        index.add(prod_emb)  # type: ignore
 
         k = min(10, len(products))
-        distances, indices = index.search(bench_emb, k)
+        distances, indices = index.search(bench_emb, k)  # type: ignore
 
-        threshold = 0.75
+        threshold = 0.85
         for b_idx, (prod_idxs, dist_row) in enumerate(zip(indices, distances)):
             benchmark_id = benchmarks[b_idx].id
             for p_idx, distance in zip(prod_idxs, dist_row):
