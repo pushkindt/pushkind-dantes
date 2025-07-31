@@ -33,6 +33,7 @@ class FloatVectorType(TypeDecorator):
     def process_result_value(self, value, dialect):
         if value is None:
             return None
+        return np.frombuffer(value, dtype=np.float32).tolist()
 
 
 class Base(DeclarativeBase):
