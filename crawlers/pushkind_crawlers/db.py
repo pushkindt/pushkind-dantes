@@ -172,16 +172,17 @@ def update_benchmark_associations(
             crawler = session.scalars(select(Crawler).where(Crawler.selector == crawler_selector)).one()
             product_query = product_query.where(Product.crawler_id == crawler.id)
 
-        benchmark_query = select(Benchmark)
-        if benchmark_id is not None:
-            benchmark_query = benchmark_query.where(Benchmark.id == benchmark_id)
-
         products = session.scalars(product_query).all()
         if not products:
             return
 
-        prod_ids = [p.id for p in products]
-        session.execute(delete(ProductBenchmark).where(ProductBenchmark.product_id.in_(prod_ids)))
+        benchmark_query = select(Benchmark)
+        if benchmark_id is not None:
+            benchmark_query = benchmark_query.where(Benchmark.id == benchmark_id)
+            session.execute(delete(ProductBenchmark).where(ProductBenchmark.benchmark_id == benchmark_id))
+        else:
+            prod_ids = [p.id for p in products]
+            session.execute(delete(ProductBenchmark).where(ProductBenchmark.product_id.in_(prod_ids)))
 
         benchmarks = session.scalars(benchmark_query).all()
         if not benchmarks:
@@ -212,7 +213,7 @@ def update_benchmark_associations(
         k = min(10, len(products))
         distances, indices = index.search(bench_emb, k)  # type: ignore
 
-        threshold = 0.85
+        threshold = 0.84
         for b_idx, (prod_idxs, dist_row) in enumerate(zip(indices, distances)):
             benchmark_id = benchmarks[b_idx].id
             for p_idx, distance in zip(prod_idxs, dist_row):
