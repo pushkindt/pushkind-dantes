@@ -20,3 +20,10 @@
     </div>
 
 {% endblock %}
+{% block scripts %}
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            enableSorting("#items", ".product");
+        });
+    </script>
+{% endblock %}

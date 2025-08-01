@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% include 'constants.html' %}
 
 {% block content %}
     {% include 'components/navigation.html' %}
@@ -21,7 +22,7 @@
         {% set crawler = crawler_products.0 %}
 	{% set products = crawler_products.1 %}
 
-        <div class="container bg-white border rounded my-2">
+        <div class="container bg-white border rounded my-2 items">
             <h5>Товары {{crawler.name}}</h5>
             {% include 'components/product_header.html' %}
 
@@ -33,4 +34,11 @@
 
     {% endfor %}
 
+{% endblock %}
+{% block scripts %}
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            enableSorting(".items", ".product");
+        });
+    </script>
 {% endblock %}
