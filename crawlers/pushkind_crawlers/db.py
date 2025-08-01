@@ -119,17 +119,7 @@ def save_products(
                     amount=product.amount,
                     description=product.description,
                     url=product.url,
-                    embedding=prompt_to_embedding(
-                        _prompt(
-                            product.name,
-                            product.sku,
-                            product.category,
-                            product.units,
-                            product.price,
-                            product.amount,
-                            product.description,
-                        )
-                    ),
+                    embedding=None,
                 )
             )
         session.query(Crawler).filter(Crawler.selector == crawler_selector).update(
@@ -195,6 +185,7 @@ def update_benchmark_associations(
                     _prompt(p.name, p.sku, p.category, p.units, p.price, p.amount, p.description)
                 )
             prod_emb.append(p.embedding)
+            session.commit()
 
         bench_emb = []
         for b in benchmarks:
@@ -203,6 +194,7 @@ def update_benchmark_associations(
                     _prompt(b.name, b.sku, b.category, b.units, b.price, b.amount, b.description)
                 )
             bench_emb.append(b.embedding)
+            session.commit()
 
         prod_emb = np.array(prod_emb, dtype="float32")
         bench_emb = np.array(bench_emb, dtype="float32")
