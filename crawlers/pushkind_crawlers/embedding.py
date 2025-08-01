@@ -11,7 +11,7 @@ def _get_model() -> TextEmbedding:
     global _model
     if _model is None:
         _model = TextEmbedding(
-            "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+            "intfloat/multilingual-e5-large"
         )
     return _model
 
