@@ -184,8 +184,8 @@ def update_benchmark_associations(
                 p.embedding = prompt_to_embedding(
                     _prompt(p.name, p.sku, p.category, p.units, p.price, p.amount, p.description)
                 )
+                session.commit()
             prod_emb.append(p.embedding)
-            session.commit()
 
         bench_emb = []
         for b in benchmarks:
@@ -193,8 +193,8 @@ def update_benchmark_associations(
                 b.embedding = prompt_to_embedding(
                     _prompt(b.name, b.sku, b.category, b.units, b.price, b.amount, b.description)
                 )
+                session.commit()
             bench_emb.append(b.embedding)
-            session.commit()
 
         prod_emb = np.array(prod_emb, dtype="float32")
         bench_emb = np.array(bench_emb, dtype="float32")

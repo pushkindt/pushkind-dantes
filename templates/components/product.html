@@ -14,7 +14,7 @@
         {{product.category}}
     </div>
     <div class="col overflow-hidden">
-        {{product.price}} / {{product.amount}} {{product.units}}
+        {{product.price}}{{constants::currency()}} / {{product.amount}} {{product.units}}
     </div>
     <div class="col overflow-hidden text-truncate">
         {{product.description}}

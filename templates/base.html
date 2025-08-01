@@ -1,3 +1,5 @@
+
+{% import "constants.html" as constants %}
 <!doctype html>
 <html lang="ru">
     <head>
@@ -113,7 +115,49 @@
                     });
                 }
             };
+
+            function enableSorting(itemContainerSelector, itemSelector) {
+                const containers = document.querySelectorAll(itemContainerSelector);
+                console.log(containers);
+
+                containers.forEach(container => {
+                    const header = container.querySelector(".row.fw-bold");
+                    console.log(header);
+                    const productRows = Array.from(container.querySelectorAll(itemSelector));
+                    console.log(productRows);
+
+                    let currentSort = { column: null, asc: true };
+
+                    header.querySelectorAll("[data-column]").forEach((headerCell, colIndex) => {
+                        console.log(headerCell);
+                        headerCell.style.cursor = "pointer";
+                        headerCell.addEventListener("click", () => {
+                            const column = headerCell.dataset.column;
+
+                            const isSameColumn = currentSort.column === column;
+                            currentSort.asc = isSameColumn ? !currentSort.asc : true;
+                            currentSort.column = column;
+
+                            const sortedRows = [...productRows].sort((a, b) => {
+                                const aCol = a.children[colIndex].textContent.trim();
+                                const bCol = b.children[colIndex].textContent.trim();
+
+                                const aVal = parseFloat(aCol.replace(",", ".")) || aCol.toLowerCase();
+                                const bVal = parseFloat(bCol.replace(",", ".")) || bCol.toLowerCase();
+
+                                if (aVal < bVal) return currentSort.asc ? -1 : 1;
+                                if (aVal > bVal) return currentSort.asc ? 1 : -1;
+                                return 0;
+                            });
+
+                            sortedRows.forEach(row => container.appendChild(row));
+                        });
+                    });
+                });
+            }
+
         </script>
+
         {% block scripts %}{% endblock %}
     </body>
 </html>
