@@ -9,7 +9,7 @@ use tera::Context;
 
 use crate::models::config::ServerConfig;
 use crate::repository::crawler::DieselCrawlerRepository;
-use crate::repository::{CrawlerReader, CrawlerWriter};
+use crate::repository::{CrawlerReader};
 use crate::routes::render_template;
 
 #[get("/")]
@@ -80,13 +80,6 @@ pub async fn process_crawler(
     match send_zmq_message(crawler.selector.as_bytes(), &server_config.zmq_address) {
         Ok(_) => {
             FlashMessage::success("Обработка запущена").send();
-            match repo.set_processing(crawler_id, true) {
-                Ok(_) => (),
-                Err(e) => {
-                    log::error!("Failed to set crawler as processing: {e}");
-                    FlashMessage::error("Не удалось установить флаг обработки.").send();
-                }
-            }
         }
         Err(e) => {
             log::error!("Failed to send ZMQ message: {e}");

@@ -4,7 +4,7 @@ use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::crawler::Crawler;
 use crate::models::crawler::Crawler as DbCrawler;
-use crate::repository::{CrawlerReader, CrawlerWriter};
+use crate::repository::{CrawlerReader};
 
 pub struct DieselCrawlerRepository<'a> {
     pub pool: &'a DbPool,
@@ -44,17 +44,5 @@ impl CrawlerReader for DieselCrawlerRepository<'_> {
             .optional()?;
 
         Ok(result.map(|db_crawler| db_crawler.into())) // Convert DbCrawler to DomainCrawler
-    }
-}
-impl CrawlerWriter for DieselCrawlerRepository<'_> {
-    fn set_processing(&self, id: i32, status: bool) -> RepositoryResult<usize> {
-        use crate::schema::crawlers;
-
-        let mut conn = self.pool.get()?;
-
-        diesel::update(crawlers::table.filter(crawlers::id.eq(id)))
-            .set(crawlers::processing.eq(status))
-            .execute(&mut conn)
-            .map_err(|e| e.into())
     }
 }
