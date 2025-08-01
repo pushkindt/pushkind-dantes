@@ -7,9 +7,15 @@
     <div class="container bg-white border rounded my-2">
         <form method="POST" action="/benchmark/{{benchmark.id}}/process">
             <h5>Бенчмарк</h5>
-            <button type="sumbit" class="btn btn-success">
-                Обработка
-            </button>
+            {% if not benchmark.processing %}
+                <button type="submit" class="btn btn-sm btn-success">
+                    Обработка
+                </button>
+            {% else %}
+                <button type="button" disabled class="btn btn-sm btn-secondary">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            {% endif %}
         </form>
         {% include 'components/product_header.html' %}
 

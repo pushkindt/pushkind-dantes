@@ -57,9 +57,7 @@ pub trait CrawlerReader {
     fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>>;
 }
 
-pub trait CrawlerWriter {
-    fn set_processing(&self, id: i32, status: bool) -> RepositoryResult<usize>;
-}
+pub trait CrawlerWriter {}
 
 pub trait ProductReader {
     fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;

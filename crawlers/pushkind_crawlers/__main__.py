@@ -6,7 +6,12 @@ import zmq
 import zmq.asyncio
 from dotenv import load_dotenv
 from pushkind_crawlers.crawler.stores.tea101 import parse_101tea
-from pushkind_crawlers.db import save_products, update_benchmark_associations
+from pushkind_crawlers.db import (
+    save_products,
+    set_benchmark_status,
+    set_crawler_status,
+    update_benchmark_associations,
+)
 
 ctx = zmq.asyncio.Context()
 log = logging.getLogger(__name__)
@@ -31,16 +36,21 @@ async def consumer(zmq_address: str, db_url: str):
     async def handle_message(crawler_selector: str):
         try:
             if crawler_selector.isnumeric():
-                log.info("Handling benchmark: %s", crawler_selector)
-                update_benchmark_associations(db_url, benchmark_id=int(crawler_selector))
+                benchmark_id = int(crawler_selector)
+                log.info("Handling benchmark: %s", benchmark_id)
+                set_benchmark_status(db_url, benchmark_id, True)
+                update_benchmark_associations(db_url, benchmark_id=benchmark_id)
+                set_benchmark_status(db_url, benchmark_id, False)
                 log.info("Done processing: %s", crawler_selector)
             elif crawler_selector in crawlers_map:
                 log.info("Handling crawler: %s", crawler_selector)
+                set_crawler_status(db_url, crawler_selector, True)
                 products = []
                 products = await crawlers_map[crawler_selector]()
                 save_products(db_url, crawler_selector, products)
                 if products:
                     update_benchmark_associations(db_url, crawler_selector)
+                set_crawler_status(db_url, crawler_selector, False, len(products))
                 log.info("Done processing: %s → %d products", crawler_selector, len(products))
             else:
                 log.error("Unknown crawler: %s", crawler_selector)

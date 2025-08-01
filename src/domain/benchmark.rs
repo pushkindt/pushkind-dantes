@@ -14,6 +14,7 @@ pub struct Benchmark {
     pub description: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub processing: bool,
 }
 
 pub struct NewBenchmark {

@@ -85,6 +85,7 @@ class Benchmark(Base):
     created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
     embedding: Mapped[list[float] | None] = mapped_column(FloatVectorType(), nullable=True)
+    processing: Mapped[bool] = mapped_column(nullable=False, default=False)
 
 
 class ProductBenchmark(Base):
@@ -92,6 +93,30 @@ class ProductBenchmark(Base):
     product_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     benchmark_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     distance: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+def set_crawler_status(db_url: str, crawler_selector: str, processing: bool, num_products: int | None = None):
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        updates = {
+            "processing": processing,
+            "updated_at": dt.datetime.now(),
+        }
+        if num_products is not None:
+            updates["num_products"] = num_products
+        session.query(Crawler).filter(Crawler.selector == crawler_selector).update(updates)  # type: ignore
+        session.commit()
+
+
+def set_benchmark_status(db_url: str, benchmark_id: int, processing: bool):
+    engine = create_engine(db_url)
+    with Session(engine) as session:
+        session.query(Benchmark).filter(Benchmark.id == benchmark_id).update(
+            {
+                "processing": processing,
+            }
+        )
+        session.commit()
 
 
 def save_products(
@@ -122,13 +147,6 @@ def save_products(
                     embedding=None,
                 )
             )
-        session.query(Crawler).filter(Crawler.selector == crawler_selector).update(
-            {
-                "num_products": len(products),
-                "processing": False,
-                "updated_at": dt.datetime.now(),
-            }
-        )
         session.commit()
 
 
