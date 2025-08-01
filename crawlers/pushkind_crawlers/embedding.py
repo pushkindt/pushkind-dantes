@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from fastembed import TextEmbedding
+from numpy.typing import NDArray
 
 _model: TextEmbedding | None = None
 
@@ -9,11 +10,13 @@ _model: TextEmbedding | None = None
 def _get_model() -> TextEmbedding:
     global _model
     if _model is None:
-        _model = TextEmbedding("sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
+        _model = TextEmbedding(
+            "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
+        )
     return _model
 
 
-def normalize_embedding(embedding: list[float]) -> list[float]:
+def normalize_embedding(embedding: NDArray[np.float32 | np.float64]) -> list[float]:
     """Normalize an embedding vector."""
     norm = np.linalg.norm(embedding)
     if norm == 0.0:
