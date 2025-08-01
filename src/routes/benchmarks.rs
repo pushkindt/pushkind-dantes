@@ -13,12 +13,15 @@ use tera::Context;
 use validator::Validate;
 
 use crate::domain::benchmark::NewBenchmark;
+use crate::domain::crawler::Crawler;
+use crate::domain::product::Product;
 use crate::forms::benchmarks::{AddBenchmarkForm, UploadBenchmarksForm};
 use crate::models::config::ServerConfig;
 use crate::repository::benchmark::DieselBenchmarkRepository;
+use crate::repository::crawler::DieselCrawlerRepository;
 use crate::repository::product::DieselProductRepository;
 use crate::repository::{BenchmarkListQuery, ProductListQuery};
-use crate::repository::{BenchmarkReader, BenchmarkWriter, ProductReader};
+use crate::repository::{BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductReader};
 use crate::routes::render_template;
 
 #[derive(Deserialize)]
@@ -111,15 +114,35 @@ pub async fn show_benchmark(
         }
     };
 
-    let product_repo = DieselProductRepository::new(&pool);
+    let crawler_repo = DieselCrawlerRepository::new(&pool);
 
-    let products = match product_repo.list(ProductListQuery::default().benchmark(benchmark_id)) {
-        Ok((_total, products)) => products,
+    let crawlers = match crawler_repo.list(user.hub_id) {
+        Ok(crawlers) => crawlers,
         Err(e) => {
-            log::error!("Failed to list products: {e}");
+            log::error!("Failed to list crawlers: {e}");
             return HttpResponse::InternalServerError().finish();
         }
     };
+
+    let product_repo = DieselProductRepository::new(&pool);
+
+    let mut products: Vec<(Crawler, Vec<Product>)> = vec![];
+
+    for crawler in crawlers {
+        let crawler_products = match product_repo.list(
+            ProductListQuery::default()
+                .benchmark(benchmark_id)
+                .crawler(crawler.id),
+        ) {
+            Ok((_total, products)) => products,
+            Err(e) => {
+                log::error!("Failed to list products: {e}");
+                return HttpResponse::InternalServerError().finish();
+            }
+        };
+        products.push((crawler, crawler_products));
+    }
+
     let distances = match product_repo.list_distances(benchmark_id) {
         Ok(distances) => distances,
         Err(e) => {
@@ -129,7 +152,7 @@ pub async fn show_benchmark(
     };
 
     context.insert("benchmark", &benchmark);
-    context.insert("products", &products);
+    context.insert("crawler_products", &products);
     context.insert("distances", &distances);
 
     render_template("benchmarks/benchmark.html", &context)

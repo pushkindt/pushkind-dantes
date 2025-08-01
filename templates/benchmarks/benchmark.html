@@ -17,15 +17,18 @@
 
     </div>
 
+    {% for (crawler, products) in crawler_products %}
 
-    <div class="container bg-white border rounded my-2">
-        <h5>Товары</h5>
-        {% include 'components/product_header.html' %}
+        <div class="container bg-white border rounded my-2">
+            <h5>Товары {{crawler.name}}</h5>
+            {% include 'components/product_header.html' %}
 
-        {% for product in products %}
-            {% include 'components/product.html' %}
-        {% endfor %}
+            {% for product in products %}
+                {% include 'components/product.html' %}
+            {% endfor %}
 
-    </div>
+        </div>
+
+    {% endfor %}
 
 {% endblock %}
