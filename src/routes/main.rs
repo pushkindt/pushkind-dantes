@@ -3,9 +3,9 @@ use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::db::DbPool;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
+use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQMessage};
 use pushkind_common::routes::{alert_level_to_str, ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
-use pushkind_common::models::zmq::dantes::{ZMQMessage, CrawlerSelector};
 use tera::Context;
 
 use crate::models::config::ServerConfig;

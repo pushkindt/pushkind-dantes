@@ -4,18 +4,15 @@ use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::db::DbPool;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
+use pushkind_common::models::zmq::dantes::ZMQMessage;
 use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
 use pushkind_common::pagination::Paginated;
 use pushkind_common::routes::{alert_level_to_str, ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
-use pushkind_common::models::zmq::dantes::ZMQMessage;
 use serde::Deserialize;
 use tera::Context;
 use validator::Validate;
 
-use crate::domain::benchmark::NewBenchmark;
-use crate::domain::crawler::Crawler;
-use crate::domain::product::Product;
 use crate::forms::benchmarks::{AddBenchmarkForm, UploadBenchmarksForm};
 use crate::models::config::ServerConfig;
 use crate::repository::benchmark::DieselBenchmarkRepository;
@@ -24,6 +21,9 @@ use crate::repository::product::DieselProductRepository;
 use crate::repository::{BenchmarkListQuery, ProductListQuery};
 use crate::repository::{BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductReader};
 use crate::routes::render_template;
+use pushkind_common::domain::benchmark::NewBenchmark;
+use pushkind_common::domain::crawler::Crawler;
+use pushkind_common::domain::product::Product;
 
 #[derive(Deserialize)]
 struct BenchmarkQueryParams {
