@@ -61,9 +61,4 @@ diesel::joinable!(product_benchmark -> benchmarks (benchmark_id));
 diesel::joinable!(product_benchmark -> products (product_id));
 diesel::joinable!(products -> crawlers (crawler_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    benchmarks,
-    crawlers,
-    product_benchmark,
-    products,
-);
+diesel::allow_tables_to_appear_in_same_query!(benchmarks, crawlers, product_benchmark, products,);

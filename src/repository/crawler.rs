@@ -4,7 +4,7 @@ use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::crawler::Crawler;
 use crate::models::crawler::Crawler as DbCrawler;
-use crate::repository::{CrawlerReader};
+use crate::repository::CrawlerReader;
 
 pub struct DieselCrawlerRepository<'a> {
     pub pool: &'a DbPool,
