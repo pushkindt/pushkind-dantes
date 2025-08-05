@@ -23,34 +23,8 @@ jobs:
         with:
           name: pushkind-dantes
           path: ./target/release/pushkind-dantes
-  build-python:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-        working-directory: ./crawlers
-    steps:
-      - uses: actions/checkout@v2
-      - name: Install Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Install poetry
-        uses: abatilo/actions-poetry@v4
-        with:
-          poetry-version: '2.1.3'
-      - name: Setup a local virtual environment (if no poetry.toml file)
-        run: |
-          poetry config virtualenvs.create true --local
-          poetry config virtualenvs.in-project true --local
-      - name: Build Python package
-        run: poetry build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pushkind-crawlers
-          path: crawlers/dist/
   deploy:
-    needs: [build-rust, build-python]
+    needs: build-rust
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -58,10 +32,6 @@ jobs:
         with:
           name: pushkind-dantes
           path: ./target/release/
-      - uses: actions/download-artifact@v4
-        with:
-          name: pushkind-crawlers
-          path: ./dist/
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2
         with:
@@ -71,12 +41,10 @@ jobs:
           if_key_exists: fail # replace / ignore / fail; optional (defaults to fail)
       - name: Deploy
         run: |
-          ssh cicd@dantes.pushkind.com "supervisorctl stop dantes && supervisorctl stop crawlers"
+          ssh cicd@dantes.pushkind.com "supervisorctl stop dantes"
           scp ./target/release/pushkind-dantes cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./assets/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./templates/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./migrations/ cicd@dantes.pushkind.com:/var/www9/html/
-          scp -r ./dist/ cicd@dantes.pushkind.com:/var/www9/html/
           ssh cicd@dantes.pushkind.com "cd /var/www9/html/ && /home/cicd/.cargo/bin/diesel migration run"
-          ssh cicd@dantes.pushkind.com "cd /var/www9/html/ && venv/bin/python -m pip install dist/*.whl --force-reinstall"
-          ssh cicd@dantes.pushkind.com "supervisorctl start dantes && supervisorctl start crawlers"
+          ssh cicd@dantes.pushkind.com "supervisorctl start dantes"

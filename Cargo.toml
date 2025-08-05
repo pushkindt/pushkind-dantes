@@ -17,7 +17,7 @@ lazy_static = "1.5.0"
 actix-web-flash-messages = { version = "0.5.0", features = ["cookies"] }
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "2.0.12"
-pushkind-common = { git = "https://github.com/pushkindt/pushkind-common.git", branch = "main", features = ["db", "zeromq"] }
+pushkind-common = { git = "https://github.com/pushkindt/pushkind-common.git", branch = "main", features = ["dantes", "zeromq", "actix"] }
 validator = { version = "0.20.0", features = ["derive"] }
 actix-files = "0.6.6"
 csv = "1.3.1"

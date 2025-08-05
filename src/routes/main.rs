@@ -5,11 +5,12 @@ use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::{alert_level_to_str, ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
+use pushkind_common::models::zmq::dantes::{ZMQMessage, CrawlerSelector};
 use tera::Context;
 
 use crate::models::config::ServerConfig;
+use crate::repository::CrawlerReader;
 use crate::repository::crawler::DieselCrawlerRepository;
-use crate::repository::{CrawlerReader};
 use crate::routes::render_template;
 
 #[get("/")]
@@ -77,7 +78,8 @@ pub async fn process_crawler(
         }
     };
 
-    match send_zmq_message(crawler.selector.as_bytes(), &server_config.zmq_address) {
+    let message = ZMQMessage::Crawler(CrawlerSelector::Selector(crawler.selector));
+    match send_zmq_message(&message, &server_config.zmq_address) {
         Ok(_) => {
             FlashMessage::success("Обработка запущена").send();
         }

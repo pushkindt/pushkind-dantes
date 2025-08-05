@@ -8,6 +8,7 @@ use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
 use pushkind_common::pagination::Paginated;
 use pushkind_common::routes::{alert_level_to_str, ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
+use pushkind_common::models::zmq::dantes::ZMQMessage;
 use serde::Deserialize;
 use tera::Context;
 use validator::Validate;
@@ -199,8 +200,9 @@ pub async fn process_benchmark(
         return response;
     };
 
-    let benchmark_id = format!("{}", benchmark_id.into_inner());
-    match send_zmq_message(benchmark_id.as_bytes(), &server_config.zmq_address) {
+    let benchmark_id = benchmark_id.into_inner();
+    let message = ZMQMessage::Benchmark(benchmark_id);
+    match send_zmq_message(&message, &server_config.zmq_address) {
         Ok(_) => {
             FlashMessage::success("Обработка запущена").send();
         }
