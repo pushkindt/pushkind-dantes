@@ -73,4 +73,5 @@ pub trait BenchmarkReader {
 
 pub trait BenchmarkWriter {
     fn create(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize>;
+    fn delete_association(&self, benchmark_id: i32, product_id: i32) -> RepositoryResult<usize>;
 }

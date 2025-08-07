@@ -17,7 +17,7 @@ use serde::Deserialize;
 use tera::Context;
 use validator::Validate;
 
-use crate::forms::benchmarks::{AddBenchmarkForm, UploadBenchmarksForm};
+use crate::forms::benchmarks::{AddBenchmarkForm, UploadBenchmarksForm, UnassociateForm};
 use crate::models::config::ServerConfig;
 use crate::repository::benchmark::DieselBenchmarkRepository;
 use crate::repository::crawler::DieselCrawlerRepository;
@@ -310,6 +310,31 @@ pub async fn crawl_benchmark(
                 .send();
             }
         }
+    }
+
+    redirect(&format!("/benchmark/{benchmark_id}"))
+}
+
+#[post("/benchmark/unassociate")]
+pub async fn delete_benchmark_product(
+    user: AuthenticatedUser,
+    pool: web::Data<DbPool>,
+    web::Form(form): web::Form<UnassociateForm>,
+) -> impl Responder {
+    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
+        return response;
+    };
+
+    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+
+    let benchmark_id = form.benchmark_id;
+    let product_id = form.product_id;
+
+    if let Err(e) = benchmark_repo.delete_association(benchmark_id, product_id) {
+        log::error!("Failed to delete delete_association: {e}");
+        FlashMessage::error("Ошибка при удалении мэтчинга").send();
+    } else {
+        FlashMessage::success("Мэтчинг удален.").send();
     }
 
     redirect(&format!("/benchmark/{benchmark_id}"))

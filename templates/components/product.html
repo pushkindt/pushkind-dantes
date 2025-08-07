@@ -1,8 +1,15 @@
 <div class="row my-1 py-1 border-top product {%if product_kind%}selectable{%endif%}" data-id={{product.id}} data-kind="{{product_kind | default(value="") }}">
-    {% if distances %}
-    <div class="col overflow-hidden">
-        {{distances[product.id] | default(value=1) | round(method="ceil", precision=2)}}
-    </div>
+    {% if distances and distances[product.id] %}
+        <div class="col overflow-hidden">
+            <form method="POST" action="/benchmark/unassociate">
+                <input type="hidden" value="{{benchmark.id}}" name="benchmark_id" required>
+                <input type="hidden" value="{{product.id}}" name="product_id" required>
+                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить?')">
+                    <i class="bi bi-x"></i>
+                </button>
+                {{distances[product.id] | round(method="ceil", precision=2)}}
+            </form>
+        </div>
     {% endif %}
     <div class="col overflow-hidden">
         {{product.name}}
