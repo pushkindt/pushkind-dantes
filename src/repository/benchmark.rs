@@ -2,9 +2,11 @@ use diesel::prelude::*;
 use pushkind_common::db::DbPool;
 use pushkind_common::repository::errors::RepositoryResult;
 
-use crate::domain::benchmark::{Benchmark, NewBenchmark};
-use crate::models::benchmark::{Benchmark as DbBenchmark, NewBenchmark as DbNewBenchmark};
 use crate::repository::{BenchmarkListQuery, BenchmarkReader, BenchmarkWriter};
+use pushkind_common::domain::benchmark::{Benchmark, NewBenchmark};
+use pushkind_common::models::benchmark::{
+    Benchmark as DbBenchmark, NewBenchmark as DbNewBenchmark,
+};
 
 pub struct DieselBenchmarkRepository<'a> {
     pub pool: &'a DbPool,
@@ -18,7 +20,7 @@ impl<'a> DieselBenchmarkRepository<'a> {
 
 impl BenchmarkReader for DieselBenchmarkRepository<'_> {
     fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>> {
-        use crate::schema::benchmarks;
+        use pushkind_common::schema::dantes::benchmarks;
 
         let mut conn = self.pool.get()?;
 
@@ -31,7 +33,7 @@ impl BenchmarkReader for DieselBenchmarkRepository<'_> {
     }
 
     fn list(&self, query: BenchmarkListQuery) -> RepositoryResult<(usize, Vec<Benchmark>)> {
-        use crate::schema::benchmarks;
+        use pushkind_common::schema::dantes::benchmarks;
 
         let mut conn = self.pool.get()?;
 
@@ -65,7 +67,7 @@ impl BenchmarkReader for DieselBenchmarkRepository<'_> {
 }
 impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
     fn create(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize> {
-        use crate::schema::benchmarks;
+        use pushkind_common::schema::dantes::benchmarks;
 
         let mut conn = self.pool.get()?;
 

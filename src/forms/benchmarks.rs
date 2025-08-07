@@ -7,7 +7,7 @@ use serde::Deserialize;
 use thiserror::Error;
 use validator::Validate;
 
-use crate::domain::benchmark::NewBenchmark;
+use pushkind_common::domain::benchmark::NewBenchmark;
 
 #[derive(Deserialize, Validate)]
 pub struct AddBenchmarkForm {

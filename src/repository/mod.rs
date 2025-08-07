@@ -3,9 +3,9 @@ use std::collections::HashMap;
 use pushkind_common::pagination::Pagination;
 use pushkind_common::repository::errors::RepositoryResult;
 
-use crate::domain::benchmark::{Benchmark, NewBenchmark};
-use crate::domain::crawler::Crawler;
-use crate::domain::product::Product;
+use pushkind_common::domain::benchmark::{Benchmark, NewBenchmark};
+use pushkind_common::domain::crawler::Crawler;
+use pushkind_common::domain::product::Product;
 
 pub mod benchmark;
 pub mod crawler;

@@ -4,9 +4,9 @@ use diesel::prelude::*;
 use pushkind_common::db::DbPool;
 use pushkind_common::repository::errors::RepositoryResult;
 
-use crate::domain::product::Product;
-use crate::models::product::Product as DbProduct;
 use crate::repository::{ProductListQuery, ProductReader, ProductWriter};
+use pushkind_common::domain::product::Product;
+use pushkind_common::models::product::Product as DbProduct;
 
 pub struct DieselProductRepository<'a> {
     pub pool: &'a DbPool,
@@ -20,7 +20,7 @@ impl<'a> DieselProductRepository<'a> {
 
 impl ProductReader for DieselProductRepository<'_> {
     fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>> {
-        use crate::schema::product_benchmark;
+        use pushkind_common::schema::dantes::product_benchmark;
 
         let mut conn = self.pool.get()?;
 
@@ -34,7 +34,7 @@ impl ProductReader for DieselProductRepository<'_> {
     }
 
     fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
-        use crate::schema::{product_benchmark, products};
+        use pushkind_common::schema::dantes::{product_benchmark, products};
 
         let mut conn = self.pool.get()?;
 

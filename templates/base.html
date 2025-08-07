@@ -118,18 +118,14 @@
 
             function enableSorting(itemContainerSelector, itemSelector) {
                 const containers = document.querySelectorAll(itemContainerSelector);
-                console.log(containers);
 
                 containers.forEach(container => {
                     const header = container.querySelector(".row.fw-bold");
-                    console.log(header);
                     const productRows = Array.from(container.querySelectorAll(itemSelector));
-                    console.log(productRows);
 
-                    let currentSort = { column: null, asc: true };
+                    let currentSort = { column: "name", asc: true };
 
                     header.querySelectorAll("[data-column]").forEach((headerCell, colIndex) => {
-                        console.log(headerCell);
                         headerCell.style.cursor = "pointer";
                         headerCell.addEventListener("click", () => {
                             const column = headerCell.dataset.column;

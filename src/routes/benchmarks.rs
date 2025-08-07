@@ -2,20 +2,21 @@ use actix_multipart::form::MultipartForm;
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::db::DbPool;
+use pushkind_common::domain::benchmark::NewBenchmark;
+use pushkind_common::domain::crawler::Crawler;
+use pushkind_common::domain::product::Product;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
+use pushkind_common::models::zmq::dantes::CrawlerSelector;
+use pushkind_common::models::zmq::dantes::ZMQMessage;
 use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
 use pushkind_common::pagination::Paginated;
 use pushkind_common::routes::{alert_level_to_str, ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
-use pushkind_common::models::zmq::dantes::ZMQMessage;
 use serde::Deserialize;
 use tera::Context;
 use validator::Validate;
 
-use crate::domain::benchmark::NewBenchmark;
-use crate::domain::crawler::Crawler;
-use crate::domain::product::Product;
 use crate::forms::benchmarks::{AddBenchmarkForm, UploadBenchmarksForm};
 use crate::models::config::ServerConfig;
 use crate::repository::benchmark::DieselBenchmarkRepository;
@@ -190,8 +191,8 @@ pub async fn add_benchmark(
     redirect("/benchmarks")
 }
 
-#[post("/benchmark/{benchmark_id}/process")]
-pub async fn process_benchmark(
+#[post("/benchmark/{benchmark_id}/match")]
+pub async fn match_benchmark(
     benchmark_id: web::Path<i32>,
     user: AuthenticatedUser,
     server_config: web::Data<ServerConfig>,
@@ -212,7 +213,7 @@ pub async fn process_benchmark(
         }
     }
 
-    redirect("/benchmarks")
+    redirect(&format!("/benchmark/{benchmark_id}"))
 }
 
 #[post("/benchmarks/upload")]
@@ -247,4 +248,69 @@ pub async fn upload_benchmarks(
     }
 
     redirect("/benchmarks")
+}
+
+#[post("/benchmark/{benchmark_id}/crawl")]
+pub async fn crawl_benchmark(
+    benchmark_id: web::Path<i32>,
+    user: AuthenticatedUser,
+    pool: web::Data<DbPool>,
+    server_config: web::Data<ServerConfig>,
+) -> impl Responder {
+    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
+        return response;
+    }
+
+    let benchmark_id = benchmark_id.into_inner();
+
+    let crawler_repo = DieselCrawlerRepository::new(&pool);
+
+    let crawlers = match crawler_repo.list(user.hub_id) {
+        Ok(crawlers) => crawlers,
+        Err(e) => {
+            log::error!("Failed to list crawlers: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let product_repo = DieselProductRepository::new(&pool);
+
+    for crawler in crawlers {
+        let crawler_products = match product_repo.list(
+            ProductListQuery::default()
+                .benchmark(benchmark_id)
+                .crawler(crawler.id),
+        ) {
+            Ok((_total, products)) => products,
+            Err(e) => {
+                log::error!("Failed to list products: {e}");
+                return HttpResponse::InternalServerError().finish();
+            }
+        };
+
+        if crawler_products.is_empty() {
+            continue;
+        }
+
+        let message = ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((
+            crawler.selector.clone(),
+            crawler_products.into_iter().map(|p| p.url).collect(),
+        )));
+        match send_zmq_message(&message, &server_config.zmq_address) {
+            Ok(_) => {
+                FlashMessage::success(format!("Обработка запущена для {}", crawler.selector))
+                    .send();
+            }
+            Err(e) => {
+                log::error!("Failed to send ZMQ message: {e}");
+                FlashMessage::error(format!(
+                    "Не удалось начать обработку для {}",
+                    crawler.selector
+                ))
+                .send();
+            }
+        }
+    }
+
+    redirect(&format!("/benchmark/{benchmark_id}"))
 }
