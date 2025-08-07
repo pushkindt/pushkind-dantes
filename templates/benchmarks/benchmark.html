@@ -5,18 +5,45 @@
     {% include 'components/navigation.html' %}
 
     <div class="container bg-white border rounded my-2">
-        <form method="POST" action="/benchmark/{{benchmark.id}}/process">
-            <h5>Бенчмарк</h5>
-            {% if not benchmark.processing %}
-                <button type="submit" class="btn btn-sm btn-success">
-                    Обработка
-                </button>
-            {% else %}
-                <button type="button" disabled class="btn btn-sm btn-secondary">
-                    <i class="bi bi-arrow-clockwise"></i>
-                </button>
-            {% endif %}
-        </form>
+        <div class="row">
+            <div class="col">
+                <h5>Бенчмарк</h5>
+            </div>
+            <div class="col-auto">
+                <div class="dropdown">
+                    <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Действия
+                    </a>
+                    <ul class="dropdown-menu bg-light">
+                        {% if not benchmark.processing %}
+                            <li>
+                                <form method="POST" action="/benchmark/{{benchmark.id}}/match">
+                                    <button type="submit" class="btn btn-link dropdown-item icon-link">
+                                        <i class="bi bi-arrow-clockwise mb-1"></i>
+                                        мэтчинг
+                                    </button>
+                                </form>
+                            </li>
+                        {% else %}
+                            <li>
+                                <span class="dropdown-item disabled icon-link">
+                                    <i class="bi bi-arrow-clockwise mb-1"></i>
+                                    мэтчинг
+                                </span>
+                            </li>
+                        {% endif %}
+                        <li>
+                            <form method="POST" action="/benchmark/{{benchmark.id}}/crawl">
+                                <button type="submit" class="btn btn-link dropdown-item icon-link">
+                                    <i class="bi bi-play mb-1"></i>
+                                    парсинг
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
         {% include 'components/product_header.html' %}
 
         {% set product = benchmark %}

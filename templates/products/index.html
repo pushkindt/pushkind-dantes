@@ -3,18 +3,50 @@
 {% block content %}
     {% include 'components/navigation.html' %}
 
-    <div class="container bg-white border rounded my-2" id="items">
-
-        {% include 'components/product_header.html' %}
-
-        {% for product in products.items %}
-            {% include 'components/product.html' %}
-        {% else %}
-            <div class="alert alert-danger" role="alert">
-                Нет товаров для отображения.
+    <div class="container my-2">
+        <div class="row justify-content-end">
+            <div class="col-auto">
+                <div class="dropdown">
+                    <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Действия
+                    </a>
+                    <ul class="dropdown-menu bg-light">
+                        {% if not crawler.processing %}
+                            <li>
+                                <form method="POST" action="/crawler/{{crawler.id}}/crawl">
+                                    <button type="submit" class="btn btn-link dropdown-item icon-link">
+                                        <i class="bi bi-play mb-1"></i>
+                                        парсинг
+                                    </button>
+                                </form>
+                            </li>
+                        {% else %}
+                            <li>
+                                <span class="dropdown-item disabled icon-link">
+                                    <i class="bi bi-play mb-1"></i>
+                                    парсинг
+                                </span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
             </div>
-        {% endfor %}
+        </div>
+    </div>
 
+    <div class="container bg-white border rounded my-2">
+        <div id="items">
+            {% include 'components/product_header.html' %}
+
+            {% for product in products.items %}
+                    {% include 'components/product.html' %}
+
+            {% else %}
+                <div class="alert alert-danger" role="alert">
+                    Нет товаров для отображения.
+                </div>
+            {% endfor %}
+            </div>
         {% set items = products %}
         {% include 'components/pagination.html' %}
     </div>

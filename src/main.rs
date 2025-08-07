@@ -14,10 +14,11 @@ use pushkind_common::routes::logout;
 
 use pushkind_dantes::models::config::ServerConfig;
 use pushkind_dantes::routes::benchmarks::{
-    add_benchmark, process_benchmark, show_benchmark, show_benchmarks, upload_benchmarks,
+    add_benchmark, crawl_benchmark, match_benchmark, show_benchmark, show_benchmarks,
+    upload_benchmarks,
 };
-use pushkind_dantes::routes::main::{index, not_assigned, process_crawler};
-use pushkind_dantes::routes::products::show_products;
+use pushkind_dantes::routes::main::{index, not_assigned};
+use pushkind_dantes::routes::products::{crawl_crawler, show_products};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -82,12 +83,13 @@ async fn main() -> std::io::Result<()> {
                 web::scope("")
                     .wrap(RedirectUnauthorized)
                     .service(index)
-                    .service(process_crawler)
+                    .service(crawl_crawler)
                     .service(show_benchmarks)
                     .service(show_benchmark)
                     .service(upload_benchmarks)
                     .service(add_benchmark)
-                    .service(process_benchmark)
+                    .service(match_benchmark)
+                    .service(crawl_benchmark)
                     .service(show_products)
                     .service(logout),
             )

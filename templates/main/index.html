@@ -5,7 +5,7 @@
 
 {% if crawlers %}
     <div class="container bg-white border rounded my-2" id="items">
-        <div class="row d-none d-sm-flex fw-bold">
+        <div class="row fw-bold">
             <div class="col overflow-hidden">
                 Название
             </div>
@@ -15,33 +15,17 @@
             <div class="col overflow-hidden">
                 Товаров
             </div>
-            <div class="col overflow-hidden">
-                Обработка
-            </div>
         </div>
         {% for crawler in crawlers %}
             <div class="row my-1 py-1 border-top crawler selectable" data-id="{{crawler.id}}" data-kind="crawler">
                 <div class="col overflow-hidden">
-                   {{crawler.name}}
+                   <a href="{{crawler.url}}">{{crawler.name}}</a>
                 </div>
                 <div class="col overflow-hidden">
                     {{crawler.updated_at | date(format="%Y-%m-%d %H:%M")}}
                 </div>
                 <div class="col overflow-hidden">
                     {{crawler.num_products}}
-                </div>
-                <div class="col overflow-hidden">
-                    <form method="POST" action="/process/{{crawler.id}}">
-                        {% if not crawler.processing %}
-                            <button type="submit" class="btn btn-sm btn-success">
-                                Обработка
-                            </button>
-                        {% else %}
-                            <button type="button" disabled class="btn btn-sm btn-secondary">
-                                <i class="bi bi-arrow-clockwise"></i>
-                            </button>
-                        {% endif %}
-                    </form>
                 </div>
             </div>
         {% endfor %}
