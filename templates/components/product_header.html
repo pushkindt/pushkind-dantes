@@ -1,8 +1,8 @@
 <div class="row fw-bold">
-    {% if distances and distances[product.id] %}
-    <div class="col overflow-hidden" data-column="similarity">
-        Сходство ▲▼
-    </div>
+    {% if show_distances %}
+        <div class="col overflow-hidden" data-column="similarity">
+            Сходство ▲▼
+        </div>
     {% endif %}
     <div class="col overflow-hidden" data-column="name">
         Название ▲▼
