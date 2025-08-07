@@ -53,10 +53,11 @@
 
     {% for crawler_products in crawler_products %}
         {% set crawler = crawler_products.0 %}
-	{% set products = crawler_products.1 %}
+	    {% set products = crawler_products.1 %}
 
         <div class="container bg-white border rounded my-2 items">
             <h5>Товары {{crawler.name}}</h5>
+            {% set show_distances = true %}
             {% include 'components/product_header.html' %}
 
             {% for product in products %}

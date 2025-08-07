@@ -1,5 +1,5 @@
 <div class="row my-1 py-1 border-top product {%if product_kind%}selectable{%endif%}" data-id={{product.id}} data-kind="{{product_kind | default(value="") }}">
-    {% if distances and distances[product.id] %}
+    {% if show_distances %}
         <div class="col overflow-hidden">
             <form method="POST" action="/benchmark/unassociate">
                 <input type="hidden" value="{{benchmark.id}}" name="benchmark_id" required>
