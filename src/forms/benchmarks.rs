@@ -109,3 +109,9 @@ impl UploadBenchmarksForm {
         Ok(benchmarks)
     }
 }
+
+#[derive(Deserialize)]
+pub struct UnassociateForm {
+    pub benchmark_id: i32,
+    pub product_id: i32,
+}

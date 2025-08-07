@@ -82,4 +82,19 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
 
         Ok(affected)
     }
+
+    fn delete_association(&self, benchmark_id: i32, product_id: i32) -> RepositoryResult<usize> {
+        use pushkind_common::schema::dantes::product_benchmark;
+
+        let mut conn = self.pool.get()?;
+
+        let affected = diesel::delete(
+            product_benchmark::table
+                .filter(product_benchmark::benchmark_id.eq(benchmark_id))
+                .filter(product_benchmark::product_id.eq(product_id)),
+        )
+        .execute(&mut conn)?;
+
+        Ok(affected)
+    }
 }
