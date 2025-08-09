@@ -11,7 +11,6 @@ use pushkind_common::domain::benchmark::NewBenchmark;
 
 #[derive(Deserialize, Validate)]
 pub struct AddBenchmarkForm {
-    pub hub_id: i32,
     #[validate(length(min = 1))]
     pub name: String,
     #[validate(length(min = 1))]
@@ -29,7 +28,7 @@ pub struct AddBenchmarkForm {
 impl From<AddBenchmarkForm> for NewBenchmark {
     fn from(form: AddBenchmarkForm) -> Self {
         Self {
-            hub_id: form.hub_id,
+            hub_id: -1, // Should be set afterwards
             name: form.name,
             sku: form.sku,
             category: form.category,

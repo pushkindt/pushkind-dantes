@@ -26,6 +26,19 @@ struct ProductCount {
 }
 
 impl ProductReader for DieselProductRepository<'_> {
+    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
+        use pushkind_common::schema::dantes::products;
+
+        let mut conn = self.pool.get()?;
+
+        let item = products::table
+            .filter(products::id.eq(id))
+            .first::<DbProduct>(&mut conn)
+            .optional()?;
+
+        Ok(item.map(Into::into))
+    }
+
     fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>> {
         use pushkind_common::schema::dantes::product_benchmark;
 
@@ -41,7 +54,7 @@ impl ProductReader for DieselProductRepository<'_> {
     }
 
     fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
-        use pushkind_common::schema::dantes::{product_benchmark, products};
+        use pushkind_common::schema::dantes::{crawlers, product_benchmark, products};
 
         let mut conn = self.pool.get()?;
 
@@ -58,6 +71,16 @@ impl ProductReader for DieselProductRepository<'_> {
                         product_benchmark::table
                             .filter(product_benchmark::benchmark_id.eq(benchmark_id))
                             .select(product_benchmark::product_id),
+                    ),
+                );
+            }
+
+            if let Some(hub_id) = query.hub_id {
+                items = items.filter(
+                    products::crawler_id.eq_any(
+                        crawlers::table
+                            .filter(crawlers::hub_id.eq(hub_id))
+                            .select(crawlers::id),
                     ),
                 );
             }
@@ -128,6 +151,17 @@ impl ProductReader for DieselProductRepository<'_> {
             sql.push_str(benchmark_filter);
         }
 
+        if query.hub_id.is_some() {
+            let benchmark_filter = r#"
+                AND products.crawler_id IN (
+                    SELECT crawlers.id
+                    FROM crawlers
+                    WHERE crawlers.hub_id = ?
+                )
+            "#;
+            sql.push_str(benchmark_filter);
+        }
+
         let total_sql = format!("SELECT COUNT(*) as count FROM ({sql})");
 
         // Now add pagination to SQL (but not count)
@@ -152,6 +186,11 @@ impl ProductReader for DieselProductRepository<'_> {
         if let Some(benchmark_id) = &query.benchmark_id {
             data_query = data_query.bind::<Integer, _>(benchmark_id);
             total_query = total_query.bind::<Integer, _>(benchmark_id);
+        }
+
+        if let Some(hub_id) = &query.hub_id {
+            data_query = data_query.bind::<Integer, _>(hub_id);
+            total_query = total_query.bind::<Integer, _>(hub_id);
         }
 
         if let Some(pagination) = &query.pagination {

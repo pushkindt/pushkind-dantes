@@ -14,6 +14,7 @@ pub mod product;
 #[derive(Debug, Clone, Default)]
 pub struct ProductListQuery {
     pub crawler_id: Option<i32>,
+    pub hub_id: Option<i32>,
     pub benchmark_id: Option<i32>,
     pub search: Option<String>,
     pub pagination: Option<Pagination>,
@@ -43,6 +44,10 @@ impl ProductListQuery {
         self.crawler_id = Some(crawler_id);
         self
     }
+    pub fn hub_id(mut self, hub_id: i32) -> Self {
+        self.crawler_id = Some(hub_id);
+        self
+    }
     pub fn benchmark(mut self, benchmark_id: i32) -> Self {
         self.benchmark_id = Some(benchmark_id);
         self
@@ -68,6 +73,7 @@ pub trait ProductReader {
     fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
     fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>>;
     fn search(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
+    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Product>>;
 }
 
 pub trait ProductWriter {}
