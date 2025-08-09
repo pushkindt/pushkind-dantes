@@ -15,6 +15,7 @@ pub mod product;
 pub struct ProductListQuery {
     pub crawler_id: Option<i32>,
     pub benchmark_id: Option<i32>,
+    pub search: Option<String>,
     pub pagination: Option<Pagination>,
 }
 
@@ -46,6 +47,10 @@ impl ProductListQuery {
         self.benchmark_id = Some(benchmark_id);
         self
     }
+    pub fn search(mut self, search: impl Into<String>) -> Self {
+        self.search = Some(search.into());
+        self
+    }
     pub fn paginate(mut self, page: usize, per_page: usize) -> Self {
         self.pagination = Some(Pagination { page, per_page });
         self
@@ -62,6 +67,7 @@ pub trait CrawlerWriter {}
 pub trait ProductReader {
     fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
     fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>>;
+    fn search(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
 }
 
 pub trait ProductWriter {}

@@ -3,6 +3,7 @@ use lazy_static::lazy_static;
 use log;
 use tera::{Context, Tera};
 
+pub mod api;
 pub mod benchmarks;
 pub mod main;
 pub mod products;

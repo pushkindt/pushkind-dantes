@@ -17,7 +17,7 @@ use serde::Deserialize;
 use tera::Context;
 use validator::Validate;
 
-use crate::forms::benchmarks::{AddBenchmarkForm, UploadBenchmarksForm, UnassociateForm};
+use crate::forms::benchmarks::{AddBenchmarkForm, UnassociateForm, UploadBenchmarksForm};
 use crate::models::config::ServerConfig;
 use crate::repository::benchmark::DieselBenchmarkRepository;
 use crate::repository::crawler::DieselCrawlerRepository;

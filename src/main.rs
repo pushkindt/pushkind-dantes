@@ -13,6 +13,7 @@ use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::logout;
 
 use pushkind_dantes::models::config::ServerConfig;
+use pushkind_dantes::routes::api::api_v1_products;
 use pushkind_dantes::routes::benchmarks::{
     add_benchmark, crawl_benchmark, delete_benchmark_product, match_benchmark, show_benchmark,
     show_benchmarks, upload_benchmarks,
@@ -79,6 +80,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .service(Files::new("/assets", "./assets"))
             .service(not_assigned)
+            .service(web::scope("/api").service(api_v1_products))
             .service(
                 web::scope("")
                     .wrap(RedirectUnauthorized)
