@@ -117,6 +117,11 @@ pub async fn crawl_crawler(
         }
     };
 
+    if crawler.hub_id != user.hub_id {
+        FlashMessage::error("Недостаточно прав").send();
+        return redirect("/");
+    }
+
     let message = ZMQMessage::Crawler(CrawlerSelector::Selector(crawler.selector));
     match send_zmq_message(&message, &server_config.zmq_address) {
         Ok(_) => {

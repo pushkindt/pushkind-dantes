@@ -118,6 +118,11 @@ pub async fn show_benchmark(
         }
     };
 
+    if benchmark.hub_id != user.hub_id {
+        FlashMessage::error("Недостаточно прав").send();
+        return redirect("/benchmarks");
+    }
+
     let crawler_repo = DieselCrawlerRepository::new(&pool);
 
     let crawlers = match crawler_repo.list(user.hub_id) {
@@ -281,6 +286,24 @@ pub async fn crawl_benchmark(
     }
 
     let benchmark_id = benchmark_id.into_inner();
+
+    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+    let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
+        Ok(Some(benchmark)) => benchmark,
+        Ok(None) => {
+            FlashMessage::error("Бенчмарк не существует").send();
+            return redirect("/benchmarks");
+        }
+        Err(e) => {
+            log::error!("Failed to get benchmark: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    if benchmark.hub_id != user.hub_id {
+        FlashMessage::error("Недостаточно прав").send();
+        return redirect("/benchmarks");
+    }
 
     let crawler_repo = DieselCrawlerRepository::new(&pool);
     let benchmark_repo = DieselBenchmarkRepository::new(&pool);
