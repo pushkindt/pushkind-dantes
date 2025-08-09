@@ -65,7 +65,7 @@ pub async fn api_v1_products(
                 .collect::<Vec<Product>>(),
         ),
         Err(e) => {
-            error!("Failed to list users: {e}");
+            error!("Failed to list products: {e}");
             HttpResponse::InternalServerError().finish()
         }
     }
