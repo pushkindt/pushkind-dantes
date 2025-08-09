@@ -17,7 +17,9 @@ use serde::Deserialize;
 use tera::Context;
 use validator::Validate;
 
-use crate::forms::benchmarks::{AddBenchmarkForm, UnassociateForm, UploadBenchmarksForm};
+use crate::forms::benchmarks::{
+    AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
+};
 use crate::models::config::ServerConfig;
 use crate::repository::benchmark::DieselBenchmarkRepository;
 use crate::repository::crawler::DieselCrawlerRepository;
@@ -330,11 +332,36 @@ pub async fn delete_benchmark_product(
     let benchmark_id = form.benchmark_id;
     let product_id = form.product_id;
 
-    if let Err(e) = benchmark_repo.delete_association(benchmark_id, product_id) {
-        log::error!("Failed to delete delete_association: {e}");
+    if let Err(e) = benchmark_repo.remove_benchmark_association(benchmark_id, product_id) {
+        log::error!("Failed to delete association: {e}");
         FlashMessage::error("Ошибка при удалении мэтчинга").send();
     } else {
         FlashMessage::success("Мэтчинг удален.").send();
+    }
+
+    redirect(&format!("/benchmark/{benchmark_id}"))
+}
+
+#[post("/benchmark/associate")]
+pub async fn create_benchmark_product(
+    user: AuthenticatedUser,
+    pool: web::Data<DbPool>,
+    web::Form(form): web::Form<AssociateForm>,
+) -> impl Responder {
+    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
+        return response;
+    };
+
+    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+
+    let benchmark_id = form.benchmark_id;
+    let product_id = form.product_id;
+
+    if let Err(e) = benchmark_repo.set_benchmark_association(benchmark_id, product_id, 1.0) {
+        log::error!("Failed to create benchmark association: {e}");
+        FlashMessage::error("Ошибка при добавлении мэтчинга").send();
+    } else {
+        FlashMessage::success("Мэтчинг добавлен.").send();
     }
 
     redirect(&format!("/benchmark/{benchmark_id}"))

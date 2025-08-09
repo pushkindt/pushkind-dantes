@@ -115,3 +115,9 @@ pub struct UnassociateForm {
     pub benchmark_id: i32,
     pub product_id: i32,
 }
+
+#[derive(Deserialize)]
+pub struct AssociateForm {
+    pub benchmark_id: i32,
+    pub product_id: i32,
+}
