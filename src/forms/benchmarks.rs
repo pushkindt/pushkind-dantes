@@ -25,19 +25,20 @@ pub struct AddBenchmarkForm {
     pub description: String,
 }
 
-impl From<AddBenchmarkForm> for NewBenchmark {
-    fn from(form: AddBenchmarkForm) -> Self {
-        Self {
-            hub_id: -1, // Should be set afterwards
-            name: form.name,
-            sku: form.sku,
-            category: form.category,
-            units: form.units,
-            price: form.price,
-            amount: form.amount,
-            description: form.description,
-            created_at: Utc::now().naive_utc(),
-            updated_at: Utc::now().naive_utc(),
+impl AddBenchmarkForm {
+    pub fn into_new_benchmark(self, hub_id: i32) -> NewBenchmark {
+        let now = Utc::now().naive_utc();
+        NewBenchmark {
+            hub_id,
+            name: self.name,
+            sku: self.sku,
+            category: self.category,
+            units: self.units,
+            price: self.price,
+            amount: self.amount,
+            description: self.description,
+            created_at: now,
+            updated_at: now,
         }
     }
 }

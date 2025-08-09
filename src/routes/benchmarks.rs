@@ -178,8 +178,7 @@ pub async fn add_benchmark(
         return redirect("/benchmarks");
     }
 
-    let mut new_benchmark: NewBenchmark = form.into();
-    new_benchmark.hub_id = user.hub_id;
+    let new_benchmark: NewBenchmark = form.into_new_benchmark(user.hub_id);
 
     let repo = DieselBenchmarkRepository::new(&pool);
     match repo.create(&[new_benchmark]) {
