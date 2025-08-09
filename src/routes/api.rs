@@ -1,6 +1,7 @@
 use actix_web::{HttpResponse, Responder, get, web};
 use log::error;
 use pushkind_common::db::DbPool;
+use pushkind_common::domain::product::Product;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
 use pushkind_common::routes::ensure_role;
@@ -54,7 +55,15 @@ pub async fn api_v1_products(
     };
 
     match result {
-        Ok((_total, products)) => HttpResponse::Ok().json(products),
+        Ok((_total, products)) => HttpResponse::Ok().json(
+            products
+                .into_iter()
+                .map(|mut p| {
+                    p.embedding = None;
+                    p
+                })
+                .collect::<Vec<Product>>(),
+        ),
         Err(e) => {
             error!("Failed to list users: {e}");
             HttpResponse::InternalServerError().finish()
