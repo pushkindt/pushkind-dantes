@@ -13,9 +13,10 @@ use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::logout;
 
 use pushkind_dantes::models::config::ServerConfig;
+use pushkind_dantes::routes::api::api_v1_products;
 use pushkind_dantes::routes::benchmarks::{
-    add_benchmark, crawl_benchmark, delete_benchmark_product, match_benchmark, show_benchmark,
-    show_benchmarks, upload_benchmarks,
+    add_benchmark, crawl_benchmark, create_benchmark_product, delete_benchmark_product,
+    match_benchmark, show_benchmark, show_benchmarks, upload_benchmarks,
 };
 use pushkind_dantes::routes::main::{index, not_assigned};
 use pushkind_dantes::routes::products::{crawl_crawler, show_products};
@@ -79,6 +80,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .service(Files::new("/assets", "./assets"))
             .service(not_assigned)
+            .service(web::scope("/api").service(api_v1_products))
             .service(
                 web::scope("")
                     .wrap(RedirectUnauthorized)
@@ -91,6 +93,7 @@ async fn main() -> std::io::Result<()> {
                     .service(match_benchmark)
                     .service(crawl_benchmark)
                     .service(delete_benchmark_product)
+                    .service(create_benchmark_product)
                     .service(show_products)
                     .service(logout),
             )

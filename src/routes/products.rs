@@ -59,21 +59,16 @@ pub async fn show_products(
     let crawler_id = crawler_id.into_inner();
 
     let crawler = match crawler_repo.get_by_id(crawler_id) {
-        Ok(Some(crawler)) => crawler,
-        Ok(None) => {
-            FlashMessage::error("Такого парсера не существует").send();
-            return redirect("/");
-        }
+        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             log::error!("Failed to get crawler: {e}");
             return HttpResponse::InternalServerError().finish();
         }
+        _ => {
+            FlashMessage::error("Парсер не существует").send();
+            return redirect("/");
+        }
     };
-
-    if crawler.hub_id != user.hub_id {
-        FlashMessage::error("Недостаточно прав").send();
-        return redirect("/");
-    }
 
     let products = match product_repo.list(
         ProductListQuery::default()
@@ -111,21 +106,16 @@ pub async fn crawl_crawler(
     let repo = DieselCrawlerRepository::new(&pool);
 
     let crawler = match repo.get_by_id(crawler_id) {
-        Ok(Some(crawler)) => crawler,
-        Ok(None) => {
-            FlashMessage::error("Такого парсера не существует").send();
-            return redirect("/");
-        }
+        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             log::error!("Failed to get crawler by id: {e}");
             return HttpResponse::InternalServerError().finish();
         }
+        _ => {
+            FlashMessage::error("Парсер не существует").send();
+            return redirect("/");
+        }
     };
-
-    if crawler.hub_id != user.hub_id {
-        FlashMessage::error("Недостаточно прав").send();
-        return redirect("/");
-    }
 
     let message = ZMQMessage::Crawler(CrawlerSelector::Selector(crawler.selector));
     match send_zmq_message(&message, &server_config.zmq_address) {

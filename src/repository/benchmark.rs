@@ -83,7 +83,11 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
         Ok(affected)
     }
 
-    fn delete_association(&self, benchmark_id: i32, product_id: i32) -> RepositoryResult<usize> {
+    fn remove_benchmark_association(
+        &self,
+        benchmark_id: i32,
+        product_id: i32,
+    ) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::product_benchmark;
 
         let mut conn = self.pool.get()?;
@@ -94,6 +98,33 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
                 .filter(product_benchmark::product_id.eq(product_id)),
         )
         .execute(&mut conn)?;
+
+        Ok(affected)
+    }
+
+    fn set_benchmark_association(
+        &self,
+        benchmark_id: i32,
+        product_id: i32,
+        distance: f32,
+    ) -> RepositoryResult<usize> {
+        use pushkind_common::schema::dantes::product_benchmark;
+
+        let mut conn = self.pool.get()?;
+
+        // Insert association entry with similarity distance
+        let affected = diesel::insert_into(product_benchmark::table)
+            .values((
+                product_benchmark::benchmark_id.eq(benchmark_id),
+                product_benchmark::product_id.eq(product_id),
+                product_benchmark::distance.eq(distance),
+            ))
+            .on_conflict((
+                product_benchmark::product_id,
+                product_benchmark::benchmark_id,
+            ))
+            .do_nothing()
+            .execute(&mut conn)?;
 
         Ok(affected)
     }

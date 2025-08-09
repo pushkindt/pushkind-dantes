@@ -17,7 +17,9 @@ use serde::Deserialize;
 use tera::Context;
 use validator::Validate;
 
-use crate::forms::benchmarks::{AddBenchmarkForm, UnassociateForm, UploadBenchmarksForm};
+use crate::forms::benchmarks::{
+    AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
+};
 use crate::models::config::ServerConfig;
 use crate::repository::benchmark::DieselBenchmarkRepository;
 use crate::repository::crawler::DieselCrawlerRepository;
@@ -105,21 +107,16 @@ pub async fn show_benchmark(
     let benchmark_repo = DieselBenchmarkRepository::new(&pool);
 
     let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
-        Ok(Some(benchmark)) => benchmark,
-        Ok(None) => {
-            FlashMessage::error("Бенчмарк не существует.").send();
-            return redirect("/benchmarks");
-        }
+        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
             return HttpResponse::InternalServerError().finish();
         }
+        _ => {
+            FlashMessage::error("Бенчмарк не существует").send();
+            return redirect("/benchmarks");
+        }
     };
-
-    if benchmark.hub_id != user.hub_id {
-        FlashMessage::error("Недостаточно прав").send();
-        return redirect("/benchmarks");
-    }
 
     let crawler_repo = DieselCrawlerRepository::new(&pool);
 
@@ -181,12 +178,7 @@ pub async fn add_benchmark(
         return redirect("/benchmarks");
     }
 
-    if form.hub_id != user.hub_id {
-        FlashMessage::error("Недостаточно прав").send();
-        return redirect("/benchmarks");
-    }
-
-    let new_benchmark: NewBenchmark = form.into();
+    let new_benchmark: NewBenchmark = form.into_new_benchmark(user.hub_id);
 
     let repo = DieselBenchmarkRepository::new(&pool);
     match repo.create(&[new_benchmark]) {
@@ -213,26 +205,22 @@ pub async fn match_benchmark(
     };
 
     let benchmark_id = benchmark_id.into_inner();
-    let repo = DieselBenchmarkRepository::new(&pool);
 
-    let benchmark = match repo.get_by_id(benchmark_id) {
-        Ok(Some(benchmark)) => benchmark,
-        Ok(None) => {
-            FlashMessage::error("Бенчмарк не существует").send();
-            return redirect("/benchmarks");
-        }
+    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+
+    let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
+        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
-            return HttpResponse::InternalServerError().finish();
+            return redirect(&format!("/benchmark/{benchmark_id}"));
+        }
+        _ => {
+            FlashMessage::error("Бенчмарк не существует").send();
+            return redirect(&format!("/benchmark/{benchmark_id}"));
         }
     };
 
-    if benchmark.hub_id != user.hub_id {
-        FlashMessage::error("Недостаточно прав").send();
-        return redirect("/benchmarks");
-    }
-
-    let message = ZMQMessage::Benchmark(benchmark_id);
+    let message = ZMQMessage::Benchmark(benchmark.id);
     match send_zmq_message(&message, &server_config.zmq_address) {
         Ok(_) => {
             FlashMessage::success("Обработка запущена").send();
@@ -293,25 +281,20 @@ pub async fn crawl_benchmark(
 
     let benchmark_id = benchmark_id.into_inner();
 
+    let crawler_repo = DieselCrawlerRepository::new(&pool);
     let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+
     let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
-        Ok(Some(benchmark)) => benchmark,
-        Ok(None) => {
-            FlashMessage::error("Бенчмарк не существует").send();
-            return redirect("/benchmarks");
-        }
+        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
-            return HttpResponse::InternalServerError().finish();
+            return redirect(&format!("/benchmark/{benchmark_id}"));
+        }
+        _ => {
+            FlashMessage::error("Бенчмарк не существует").send();
+            return redirect(&format!("/benchmark/{benchmark_id}"));
         }
     };
-
-    if benchmark.hub_id != user.hub_id {
-        FlashMessage::error("Недостаточно прав").send();
-        return redirect("/benchmarks");
-    }
-
-    let crawler_repo = DieselCrawlerRepository::new(&pool);
 
     let crawlers = match crawler_repo.list(user.hub_id) {
         Ok(crawlers) => crawlers,
@@ -326,7 +309,7 @@ pub async fn crawl_benchmark(
     for crawler in crawlers {
         let crawler_products = match product_repo.list(
             ProductListQuery::default()
-                .benchmark(benchmark_id)
+                .benchmark(benchmark.id)
                 .crawler(crawler.id),
         ) {
             Ok((_total, products)) => products,
@@ -374,32 +357,116 @@ pub async fn delete_benchmark_product(
     };
 
     let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+    let product_repo = DieselProductRepository::new(&pool);
+    let crawler_repo = DieselCrawlerRepository::new(&pool);
 
     let benchmark_id = form.benchmark_id;
     let product_id = form.product_id;
 
     let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
-        Ok(Some(benchmark)) => benchmark,
-        Ok(None) => {
-            FlashMessage::error("Бенчмарк не существует").send();
-            return redirect("/benchmarks");
-        }
+        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
             return HttpResponse::InternalServerError().finish();
         }
+        _ => {
+            FlashMessage::error("Бенчмарк не существует").send();
+            return redirect(&format!("/benchmark/{benchmark_id}"));
+        }
     };
 
-    if benchmark.hub_id != user.hub_id {
-        FlashMessage::error("Недостаточно прав").send();
-        return redirect("/benchmarks");
-    }
+    let product = match product_repo.get_by_id(product_id) {
+        Ok(Some(product)) => product,
+        Ok(None) => {
+            FlashMessage::error("Товар не существует.").send();
+            return redirect(&format!("/benchmark/{benchmark_id}"));
+        }
+        Err(e) => {
+            log::error!("Failed to get product: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
 
-    if let Err(e) = benchmark_repo.delete_association(benchmark_id, product_id) {
-        log::error!("Failed to delete delete_association: {e}");
+    let _crawler = match crawler_repo.get_by_id(product.crawler_id) {
+        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
+        Err(e) => {
+            log::error!("Failed to get crawler: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+        _ => {
+            FlashMessage::error("Парсер не существует").send();
+            return redirect(&format!("/benchmark/{benchmark_id}"));
+        }
+    };
+
+    if let Err(e) = benchmark_repo.remove_benchmark_association(benchmark.id, product.id) {
+        log::error!("Failed to delete association: {e}");
         FlashMessage::error("Ошибка при удалении мэтчинга").send();
     } else {
         FlashMessage::success("Мэтчинг удален.").send();
+    }
+
+    redirect(&format!("/benchmark/{benchmark_id}"))
+}
+
+#[post("/benchmark/associate")]
+pub async fn create_benchmark_product(
+    user: AuthenticatedUser,
+    pool: web::Data<DbPool>,
+    web::Form(form): web::Form<AssociateForm>,
+) -> impl Responder {
+    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
+        return response;
+    };
+
+    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+    let product_repo = DieselProductRepository::new(&pool);
+    let crawler_repo = DieselCrawlerRepository::new(&pool);
+
+    let benchmark_id = form.benchmark_id;
+    let product_id = form.product_id;
+
+    let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
+        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
+        Err(e) => {
+            log::error!("Failed to get benchmark: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+        _ => {
+            FlashMessage::error("Бенчмарк не существует").send();
+            return redirect(&format!("/benchmark/{benchmark_id}"));
+        }
+    };
+
+    let product = match product_repo.get_by_id(product_id) {
+        Ok(Some(product)) => product,
+        Ok(None) => {
+            FlashMessage::error("Товар не существует").send();
+            return redirect(&format!("/benchmark/{benchmark_id}"));
+        }
+        Err(e) => {
+            log::error!("Failed to get product: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let _crawler = match crawler_repo.get_by_id(product.crawler_id) {
+        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
+        Err(e) => {
+            log::error!("Failed to get crawler: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+        _ => {
+            FlashMessage::error("Парсер не существует").send();
+            return redirect(&format!("/benchmark/{benchmark_id}"));
+        }
+    };
+
+    if let Err(e) = benchmark_repo.set_benchmark_association(benchmark.id, product.id, 1.0) {
+        log::error!("Failed to create benchmark association: {e}");
+        FlashMessage::error("Ошибка при добавлении мэтчинга").send();
+    } else {
+        FlashMessage::success("Мэтчинг добавлен.").send();
     }
 
     redirect(&format!("/benchmark/{benchmark_id}"))

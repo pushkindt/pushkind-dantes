@@ -1,6 +1,15 @@
 {% extends 'base.html' %}
 {% include 'constants.html' %}
 
+{% block styles %}
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.13.3/css/selectize.bootstrap4.min.css"
+        integrity="sha512-MMojOrCQrqLg4Iarid2YMYyZ7pzjPeXKRvhW9nZqLo6kPBBTuvNET9DBVWptAo/Q20Fy11EIHM5ig4WlIrJfQw=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"
+    />
+{% endblock %}
+
 {% block content %}
     {% include 'components/navigation.html' %}
 
@@ -58,6 +67,7 @@
         <div class="container bg-white border rounded my-2 items">
             <h5>Товары {{crawler.name}}</h5>
             {% set show_distances = true %}
+            {% include 'components/product_search.html' %}
             {% include 'components/product_header.html' %}
 
             {% for product in products %}
@@ -70,9 +80,51 @@
 
 {% endblock %}
 {% block scripts %}
+    <script
+        src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+        crossorigin="anonymous">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.13.3/js/standalone/selectize.min.js"
+        integrity="sha512-pF+DNRwavWMukUv/LyzDyDMn8U2uvqYQdJN0Zvilr6DDo/56xPDZdDoyPDYZRSL4aOKO/FGKXTpzDyQJ8je8Qw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+    </script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             enableSorting(".items", ".product");
+            let product_selects = $(".product-select");
+            $(".product-select").each(function() {
+                const crawler_id = $(this).data("crawler");
+                $(this).selectize({
+                    valueField: "id",
+                    labelField: "name",
+                    searchField: ["name", "sku", "category", "description"],
+                    render: {
+                        option: function(item, escape) {
+                            let result = `<div class="border-bottom"><strong>${escape(item.name)} (${escape(item.sku)})</strong>`;
+                            result += '</div>';
+                            return result
+                        }
+                    },
+                    options: [],
+                    load: function(query, callback) {
+                        if (!query.length) return callback();
+                        $.ajax({
+                            url: `/api/v1/products?page=1&crawler_id=${crawler_id}&query=` + encodeURIComponent(query),
+                            type: 'GET',
+                            error: function() {
+                                callback();
+                            },
+                            success: function(res) {
+                                callback(res.slice(0, 20));
+                            },
+                            xhrFields: {
+                                withCredentials: true
+                            },
+                        });
+                    },
+                });
+            });
         });
     </script>
 {% endblock %}
