@@ -45,7 +45,7 @@ impl ProductListQuery {
         self
     }
     pub fn hub_id(mut self, hub_id: i32) -> Self {
-        self.crawler_id = Some(hub_id);
+        self.hub_id = Some(hub_id);
         self
     }
     pub fn benchmark(mut self, benchmark_id: i32) -> Self {
