@@ -14,9 +14,17 @@
                         {% if not crawler.processing %}
                             <li>
                                 <form method="POST" action="/crawler/{{crawler.id}}/crawl">
-                                    <button type="submit" class="btn btn-link dropdown-item icon-link">
+                                    <button type="submit" class="btn btn-link dropdown-item icon-link" onclick="return confirm("Все товары их мэтчинги с бенчмарками предварительно будут очищены.")">
                                         <i class="bi bi-play mb-1"></i>
                                         парсинг
+                                    </button>
+                                </form>
+                            </li>
+                            <li>
+                                <form method="POST" action="/crawler/{{crawler.id}}/update">
+                                    <button type="submit" class="btn btn-link dropdown-item icon-link">
+                                        <i class="bi bi-play mb-1"></i>
+                                        обновление
                                     </button>
                                 </form>
                             </li>

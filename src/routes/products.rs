@@ -130,3 +130,57 @@ pub async fn crawl_crawler(
 
     redirect(&format!("/crawler/{crawler_id}"))
 }
+
+#[post("/crawler/{crawler_id}/update")]
+pub async fn update_crawler_prices(
+    crawler_id: web::Path<i32>,
+    user: AuthenticatedUser,
+    pool: web::Data<DbPool>,
+    server_config: web::Data<ServerConfig>,
+) -> impl Responder {
+    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
+        return response;
+    }
+
+    let crawler_id = crawler_id.into_inner();
+
+    let crawler_repo = DieselCrawlerRepository::new(&pool);
+    let product_repo = DieselProductRepository::new(&pool);
+
+    let crawler = match crawler_repo.get_by_id(crawler_id) {
+        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
+        Err(e) => {
+            log::error!("Failed to get crawler by id: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+        _ => {
+            FlashMessage::error("Парсер не существует").send();
+            return redirect("/");
+        }
+    };
+
+    let crawler_products = match product_repo.list(ProductListQuery::default().crawler(crawler_id))
+    {
+        Ok((_, crawler_products)) => crawler_products,
+        Err(e) => {
+            log::error!("Failed to get products: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    let message = ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((
+        crawler.selector,
+        crawler_products.into_iter().map(|p| p.url).collect(),
+    )));
+    match send_zmq_message(&message, &server_config.zmq_address) {
+        Ok(_) => {
+            FlashMessage::success("Обработка запущена").send();
+        }
+        Err(e) => {
+            log::error!("Failed to send ZMQ message: {e}");
+            FlashMessage::error("Не удалось начать обработку.").send();
+        }
+    }
+
+    redirect(&format!("/crawler/{crawler_id}"))
+}
