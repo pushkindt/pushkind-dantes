@@ -268,8 +268,8 @@ pub async fn upload_benchmarks(
     redirect("/benchmarks")
 }
 
-#[post("/benchmark/{benchmark_id}/crawl")]
-pub async fn crawl_benchmark(
+#[post("/benchmark/{benchmark_id}/update")]
+pub async fn update_benchmark_prices(
     benchmark_id: web::Path<i32>,
     user: AuthenticatedUser,
     pool: web::Data<DbPool>,
