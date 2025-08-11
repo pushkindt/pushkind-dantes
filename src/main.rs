@@ -20,6 +20,7 @@ use pushkind_dantes::routes::benchmarks::{
 };
 use pushkind_dantes::routes::main::{index, not_assigned};
 use pushkind_dantes::routes::products::{crawl_crawler, show_products, update_crawler_prices};
+use tera::Tera;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -66,6 +67,14 @@ async fn main() -> std::io::Result<()> {
     let message_store = CookieMessageStore::builder(secret_key.clone()).build();
     let message_framework = FlashMessagesFramework::builder(message_store).build();
 
+    let tera = match Tera::new("templates/**/*") {
+        Ok(t) => t,
+        Err(e) => {
+            log::error!("Parsing error(s): {e}");
+            std::process::exit(1);
+        }
+    };
+
     HttpServer::new(move || {
         App::new()
             .wrap(message_framework.clone())
@@ -98,6 +107,7 @@ async fn main() -> std::io::Result<()> {
                     .service(show_products)
                     .service(logout),
             )
+            .app_data(web::Data::new(tera.clone()))
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(server_config.clone()))
             .app_data(web::Data::new(common_config.clone()))

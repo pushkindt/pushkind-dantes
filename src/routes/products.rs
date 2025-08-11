@@ -1,25 +1,21 @@
 use actix_web::{HttpResponse, Responder, get, post, web};
-use actix_web_flash_messages::FlashMessage;
-use actix_web_flash_messages::IncomingFlashMessages;
+use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::db::DbPool;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::models::zmq::dantes::CrawlerSelector;
 use pushkind_common::models::zmq::dantes::ZMQMessage;
-use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
-use pushkind_common::pagination::Paginated;
-use pushkind_common::routes::{alert_level_to_str, ensure_role, redirect};
+use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
+use pushkind_common::routes::{ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
 use serde::Deserialize;
-use tera::Context;
+use tera::Tera;
 
 use crate::models::config::ServerConfig;
-use crate::repository::CrawlerReader;
-use crate::repository::ProductListQuery;
-use crate::repository::ProductReader;
 use crate::repository::crawler::DieselCrawlerRepository;
 use crate::repository::product::DieselProductRepository;
-use crate::routes::render_template;
+use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
+use crate::routes::{base_context, render_template};
 
 #[derive(Deserialize)]
 struct ProductsQueryParams {
@@ -34,6 +30,7 @@ pub async fn show_products(
     flash_messages: IncomingFlashMessages,
     pool: web::Data<DbPool>,
     server_config: web::Data<CommonServerConfig>,
+    tera: web::Data<Tera>,
 ) -> impl Responder {
     if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
         return response;
@@ -41,17 +38,12 @@ pub async fn show_products(
 
     let page = params.page.unwrap_or(1);
 
-    let mut context = Context::new();
-
-    let alerts = flash_messages
-        .iter()
-        .map(|f| (f.content(), alert_level_to_str(&f.level())))
-        .collect::<Vec<_>>();
-
-    context.insert("alerts", &alerts);
-    context.insert("current_user", &user);
-    context.insert("current_page", "index");
-    context.insert("home_url", &server_config.auth_service_url);
+    let mut context = base_context(
+        &flash_messages,
+        &user,
+        "index",
+        &server_config.auth_service_url,
+    );
 
     let product_repo = DieselProductRepository::new(&pool);
     let crawler_repo = DieselCrawlerRepository::new(&pool);
@@ -87,7 +79,7 @@ pub async fn show_products(
     context.insert("products", &products);
     context.insert("crawler", &crawler);
 
-    render_template("products/index.html", &context)
+    render_template(&tera, "products/index.html", &context)
 }
 
 #[post("/crawler/{crawler_id}/crawl")]

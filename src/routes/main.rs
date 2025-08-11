@@ -3,12 +3,12 @@ use actix_web_flash_messages::IncomingFlashMessages;
 use pushkind_common::db::DbPool;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
-use pushkind_common::routes::{alert_level_to_str, ensure_role};
-use tera::Context;
+use pushkind_common::routes::ensure_role;
+use tera::Tera;
 
 use crate::repository::CrawlerReader;
 use crate::repository::crawler::DieselCrawlerRepository;
-use crate::routes::render_template;
+use crate::routes::{base_context, render_template};
 
 #[get("/")]
 pub async fn index(
@@ -16,22 +16,18 @@ pub async fn index(
     flash_messages: IncomingFlashMessages,
     pool: web::Data<DbPool>,
     server_config: web::Data<CommonServerConfig>,
+    tera: web::Data<Tera>,
 ) -> impl Responder {
     if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
         return response;
     }
 
-    let mut context = Context::new();
-
-    let alerts = flash_messages
-        .iter()
-        .map(|f| (f.content(), alert_level_to_str(&f.level())))
-        .collect::<Vec<_>>();
-
-    context.insert("alerts", &alerts);
-    context.insert("current_user", &user);
-    context.insert("current_page", "index");
-    context.insert("home_url", &server_config.auth_service_url);
+    let mut context = base_context(
+        &flash_messages,
+        &user,
+        "index",
+        &server_config.auth_service_url,
+    );
 
     let repo = DieselCrawlerRepository::new(&pool);
 
@@ -45,7 +41,7 @@ pub async fn index(
 
     context.insert("crawlers", &crawlers);
 
-    render_template("main/index.html", &context)
+    render_template(&tera, "main/index.html", &context)
 }
 
 #[get("/na")]
@@ -53,16 +49,14 @@ pub async fn not_assigned(
     user: AuthenticatedUser,
     flash_messages: IncomingFlashMessages,
     server_config: web::Data<CommonServerConfig>,
+    tera: web::Data<Tera>,
 ) -> impl Responder {
-    let alerts = flash_messages
-        .iter()
-        .map(|f| (f.content(), alert_level_to_str(&f.level())))
-        .collect::<Vec<_>>();
-    let mut context = Context::new();
-    context.insert("alerts", &alerts);
-    context.insert("current_user", &user);
-    context.insert("current_page", "index");
-    context.insert("home_url", &server_config.auth_service_url);
+    let context = base_context(
+        &flash_messages,
+        &user,
+        "index",
+        &server_config.auth_service_url,
+    );
 
-    render_template("main/not_assigned.html", &context)
+    render_template(&tera, "main/not_assigned.html", &context)
 }
