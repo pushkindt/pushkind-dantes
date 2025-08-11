@@ -10,7 +10,8 @@ use dotenvy::dotenv;
 use pushkind_common::db::establish_connection_pool;
 use pushkind_common::middleware::RedirectUnauthorized;
 use pushkind_common::models::config::CommonServerConfig;
-use pushkind_common::routes::logout;
+use pushkind_common::routes::{logout, not_assigned};
+use tera::Tera;
 
 use pushkind_dantes::models::config::ServerConfig;
 use pushkind_dantes::routes::api::api_v1_products;
@@ -18,9 +19,8 @@ use pushkind_dantes::routes::benchmarks::{
     add_benchmark, create_benchmark_product, delete_benchmark_product, match_benchmark,
     show_benchmark, show_benchmarks, update_benchmark_prices, upload_benchmarks,
 };
-use pushkind_dantes::routes::main::{index, not_assigned};
+use pushkind_dantes::routes::main::index;
 use pushkind_dantes::routes::products::{crawl_crawler, show_products, update_crawler_prices};
-use tera::Tera;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
