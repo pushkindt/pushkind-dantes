@@ -4,11 +4,11 @@ use pushkind_common::db::DbPool;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::ensure_role;
+use pushkind_common::routes::{base_context, render_template};
 use tera::Tera;
 
 use crate::repository::CrawlerReader;
 use crate::repository::crawler::DieselCrawlerRepository;
-use crate::routes::{base_context, render_template};
 
 #[get("/")]
 pub async fn index(

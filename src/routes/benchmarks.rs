@@ -10,6 +10,7 @@ use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::models::zmq::dantes::CrawlerSelector;
 use pushkind_common::models::zmq::dantes::ZMQMessage;
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
+use pushkind_common::routes::{base_context, render_template};
 use pushkind_common::routes::{ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
 use serde::Deserialize;
@@ -25,7 +26,6 @@ use crate::repository::crawler::DieselCrawlerRepository;
 use crate::repository::product::DieselProductRepository;
 use crate::repository::{BenchmarkListQuery, ProductListQuery};
 use crate::repository::{BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductReader};
-use crate::routes::{base_context, render_template};
 
 #[derive(Deserialize)]
 struct BenchmarkQueryParams {
