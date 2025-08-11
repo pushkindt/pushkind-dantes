@@ -9,12 +9,12 @@ use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::models::zmq::dantes::CrawlerSelector;
 use pushkind_common::models::zmq::dantes::ZMQMessage;
-use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
-use pushkind_common::pagination::Paginated;
-use pushkind_common::routes::{alert_level_to_str, ensure_role, redirect};
+use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
+use pushkind_common::routes::{base_context, render_template};
+use pushkind_common::routes::{ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
 use serde::Deserialize;
-use tera::Context;
+use tera::Tera;
 use validator::Validate;
 
 use crate::forms::benchmarks::{
@@ -26,7 +26,6 @@ use crate::repository::crawler::DieselCrawlerRepository;
 use crate::repository::product::DieselProductRepository;
 use crate::repository::{BenchmarkListQuery, ProductListQuery};
 use crate::repository::{BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductReader};
-use crate::routes::render_template;
 
 #[derive(Deserialize)]
 struct BenchmarkQueryParams {
@@ -40,6 +39,7 @@ pub async fn show_benchmarks(
     flash_messages: IncomingFlashMessages,
     pool: web::Data<DbPool>,
     server_config: web::Data<CommonServerConfig>,
+    tera: web::Data<Tera>,
 ) -> impl Responder {
     if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
         return response;
@@ -47,17 +47,12 @@ pub async fn show_benchmarks(
 
     let page = params.page.unwrap_or(1);
 
-    let mut context = Context::new();
-
-    let alerts = flash_messages
-        .iter()
-        .map(|f| (f.content(), alert_level_to_str(&f.level())))
-        .collect::<Vec<_>>();
-
-    context.insert("alerts", &alerts);
-    context.insert("current_user", &user);
-    context.insert("current_page", "benchmarks");
-    context.insert("home_url", &server_config.auth_service_url);
+    let mut context = base_context(
+        &flash_messages,
+        &user,
+        "benchmarks",
+        &server_config.auth_service_url,
+    );
 
     let repo = DieselBenchmarkRepository::new(&pool);
 
@@ -75,7 +70,7 @@ pub async fn show_benchmarks(
 
     context.insert("benchmarks", &benchmarks);
 
-    render_template("benchmarks/index.html", &context)
+    render_template(&tera, "benchmarks/index.html", &context)
 }
 
 #[get("/benchmark/{benchmark_id}")]
@@ -85,22 +80,18 @@ pub async fn show_benchmark(
     flash_messages: IncomingFlashMessages,
     pool: web::Data<DbPool>,
     server_config: web::Data<CommonServerConfig>,
+    tera: web::Data<Tera>,
 ) -> impl Responder {
     if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
         return response;
     }
 
-    let mut context = Context::new();
-
-    let alerts = flash_messages
-        .iter()
-        .map(|f| (f.content(), alert_level_to_str(&f.level())))
-        .collect::<Vec<_>>();
-
-    context.insert("alerts", &alerts);
-    context.insert("current_user", &user);
-    context.insert("current_page", "benchmarks");
-    context.insert("home_url", &server_config.auth_service_url);
+    let mut context = base_context(
+        &flash_messages,
+        &user,
+        "benchmarks",
+        &server_config.auth_service_url,
+    );
 
     let benchmark_id = benchmark_id.into_inner();
 
@@ -159,7 +150,7 @@ pub async fn show_benchmark(
     context.insert("crawler_products", &products);
     context.insert("distances", &distances);
 
-    render_template("benchmarks/benchmark.html", &context)
+    render_template(&tera, "benchmarks/benchmark.html", &context)
 }
 
 #[post("/benchmark/add")]
