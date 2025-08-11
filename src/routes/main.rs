@@ -43,20 +43,3 @@ pub async fn index(
 
     render_template(&tera, "main/index.html", &context)
 }
-
-#[get("/na")]
-pub async fn not_assigned(
-    user: AuthenticatedUser,
-    flash_messages: IncomingFlashMessages,
-    server_config: web::Data<CommonServerConfig>,
-    tera: web::Data<Tera>,
-) -> impl Responder {
-    let context = base_context(
-        &flash_messages,
-        &user,
-        "index",
-        &server_config.auth_service_url,
-    );
-
-    render_template(&tera, "main/not_assigned.html", &context)
-}
