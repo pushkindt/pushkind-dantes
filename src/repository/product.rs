@@ -8,6 +8,7 @@ use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::{DieselRepository, ProductListQuery, ProductReader, ProductWriter};
 
+/// Helper struct used to capture the result of a `COUNT(*)` query.
 #[derive(QueryableByName)]
 struct ProductCount {
     #[diesel(sql_type = diesel::sql_types::BigInt)]
