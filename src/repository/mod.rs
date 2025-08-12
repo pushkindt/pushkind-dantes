@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use pushkind_common::db::DbPool;
+use pushkind_common::db::{DbConnection, DbPool};
 use pushkind_common::domain::benchmark::{Benchmark, NewBenchmark};
 use pushkind_common::domain::crawler::Crawler;
 use pushkind_common::domain::product::Product;
@@ -11,13 +11,18 @@ pub mod benchmark;
 pub mod crawler;
 pub mod product;
 
-pub struct DieselRepository<'a> {
-    pub pool: &'a DbPool,
+#[derive(Clone)]
+pub struct DieselRepository {
+    pool: DbPool, // r2d2::Pool is cheap to clone
 }
 
-impl<'a> DieselRepository<'a> {
-    pub fn new(pool: &'a DbPool) -> Self {
+impl DieselRepository {
+    pub fn new(pool: DbPool) -> Self {
         Self { pool }
+    }
+
+    fn conn(&self) -> RepositoryResult<DbConnection> {
+        Ok(self.pool.get()?)
     }
 }
 

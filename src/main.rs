@@ -14,6 +14,7 @@ use pushkind_common::routes::{logout, not_assigned};
 use tera::Tera;
 
 use pushkind_dantes::models::config::ServerConfig;
+use pushkind_dantes::repository::DieselRepository;
 use pushkind_dantes::routes::api::api_v1_products;
 use pushkind_dantes::routes::benchmarks::{
     add_benchmark, create_benchmark_product, delete_benchmark_product, match_benchmark,
@@ -63,6 +64,7 @@ async fn main() -> std::io::Result<()> {
             std::process::exit(1);
         }
     };
+    let repo = DieselRepository::new(pool);
 
     let message_store = CookieMessageStore::builder(secret_key.clone()).build();
     let message_framework = FlashMessagesFramework::builder(message_store).build();
@@ -108,7 +110,7 @@ async fn main() -> std::io::Result<()> {
                     .service(logout),
             )
             .app_data(web::Data::new(tera.clone()))
-            .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(repo.clone()))
             .app_data(web::Data::new(server_config.clone()))
             .app_data(web::Data::new(common_config.clone()))
     })

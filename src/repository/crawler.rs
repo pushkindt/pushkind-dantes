@@ -5,11 +5,11 @@ use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::{CrawlerReader, DieselRepository};
 
-impl CrawlerReader for DieselRepository<'_> {
+impl CrawlerReader for DieselRepository {
     fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>> {
         use pushkind_common::schema::dantes::crawlers;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let results = crawlers::table
             .filter(crawlers::hub_id.eq(hub_id))
@@ -25,7 +25,7 @@ impl CrawlerReader for DieselRepository<'_> {
     fn get_crawler_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>> {
         use pushkind_common::schema::dantes::crawlers;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let result = crawlers::table
             .filter(crawlers::id.eq(id))

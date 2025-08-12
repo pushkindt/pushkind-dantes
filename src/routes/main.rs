@@ -1,6 +1,5 @@
 use actix_web::{HttpResponse, Responder, get, web};
 use actix_web_flash_messages::IncomingFlashMessages;
-use pushkind_common::db::DbPool;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::ensure_role;
@@ -13,7 +12,7 @@ use crate::repository::{CrawlerReader, DieselRepository};
 pub async fn index(
     user: AuthenticatedUser,
     flash_messages: IncomingFlashMessages,
-    pool: web::Data<DbPool>,
+    repo: web::Data<DieselRepository>,
     server_config: web::Data<CommonServerConfig>,
     tera: web::Data<Tera>,
 ) -> impl Responder {
@@ -27,8 +26,6 @@ pub async fn index(
         "index",
         &server_config.auth_service_url,
     );
-
-    let repo = DieselRepository::new(&pool);
 
     let crawlers = match repo.list_crawlers(user.hub_id) {
         Ok(crawlers) => crawlers,

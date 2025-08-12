@@ -1,6 +1,5 @@
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
-use pushkind_common::db::DbPool;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::models::zmq::dantes::CrawlerSelector;
@@ -26,7 +25,7 @@ pub async fn show_products(
     crawler_id: web::Path<i32>,
     user: AuthenticatedUser,
     flash_messages: IncomingFlashMessages,
-    pool: web::Data<DbPool>,
+    repo: web::Data<DieselRepository>,
     server_config: web::Data<CommonServerConfig>,
     tera: web::Data<Tera>,
 ) -> impl Responder {
@@ -43,12 +42,9 @@ pub async fn show_products(
         &server_config.auth_service_url,
     );
 
-    let product_repo = DieselRepository::new(&pool);
-    let crawler_repo = DieselRepository::new(&pool);
-
     let crawler_id = crawler_id.into_inner();
 
-    let crawler = match crawler_repo.get_crawler_by_id(crawler_id) {
+    let crawler = match repo.get_crawler_by_id(crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             log::error!("Failed to get crawler: {e}");
@@ -60,7 +56,7 @@ pub async fn show_products(
         }
     };
 
-    let products = match product_repo.list_products(
+    let products = match repo.list_products(
         ProductListQuery::default()
             .crawler(crawler_id)
             .paginate(page, DEFAULT_ITEMS_PER_PAGE),
@@ -84,7 +80,7 @@ pub async fn show_products(
 pub async fn crawl_crawler(
     crawler_id: web::Path<i32>,
     user: AuthenticatedUser,
-    pool: web::Data<DbPool>,
+    repo: web::Data<DieselRepository>,
     server_config: web::Data<ServerConfig>,
 ) -> impl Responder {
     if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
@@ -92,8 +88,6 @@ pub async fn crawl_crawler(
     }
 
     let crawler_id = crawler_id.into_inner();
-
-    let repo = DieselRepository::new(&pool);
 
     let crawler = match repo.get_crawler_by_id(crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
@@ -125,7 +119,7 @@ pub async fn crawl_crawler(
 pub async fn update_crawler_prices(
     crawler_id: web::Path<i32>,
     user: AuthenticatedUser,
-    pool: web::Data<DbPool>,
+    repo: web::Data<DieselRepository>,
     server_config: web::Data<ServerConfig>,
 ) -> impl Responder {
     if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
@@ -134,10 +128,7 @@ pub async fn update_crawler_prices(
 
     let crawler_id = crawler_id.into_inner();
 
-    let crawler_repo = DieselRepository::new(&pool);
-    let product_repo = DieselRepository::new(&pool);
-
-    let crawler = match crawler_repo.get_crawler_by_id(crawler_id) {
+    let crawler = match repo.get_crawler_by_id(crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             log::error!("Failed to get crawler by id: {e}");
@@ -149,14 +140,14 @@ pub async fn update_crawler_prices(
         }
     };
 
-    let crawler_products =
-        match product_repo.list_products(ProductListQuery::default().crawler(crawler_id)) {
-            Ok((_, crawler_products)) => crawler_products,
-            Err(e) => {
-                log::error!("Failed to get products: {e}");
-                return HttpResponse::InternalServerError().finish();
-            }
-        };
+    let crawler_products = match repo.list_products(ProductListQuery::default().crawler(crawler_id))
+    {
+        Ok((_, crawler_products)) => crawler_products,
+        Err(e) => {
+            log::error!("Failed to get products: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
 
     let message = ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((
         crawler.selector,

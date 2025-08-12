@@ -1,6 +1,5 @@
 use actix_web::{HttpResponse, Responder, get, web};
 use log::error;
-use pushkind_common::db::DbPool;
 use pushkind_common::domain::product::Product;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
@@ -20,15 +19,13 @@ struct ApiV1ProductsQueryParams {
 pub async fn api_v1_products(
     params: web::Query<ApiV1ProductsQueryParams>,
     user: AuthenticatedUser,
-    pool: web::Data<DbPool>,
+    repo: web::Data<DieselRepository>,
 ) -> impl Responder {
     if ensure_role(&user, "parser", None).is_err() {
         return HttpResponse::Unauthorized().finish();
     }
 
-    let crawler_repo = DieselRepository::new(&pool);
-
-    let crawler = match crawler_repo.get_crawler_by_id(params.crawler_id) {
+    let crawler = match repo.get_crawler_by_id(params.crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             error!("Failed to get crawler: {e}");
@@ -37,7 +34,6 @@ pub async fn api_v1_products(
         _ => return HttpResponse::NotFound().finish(),
     };
 
-    let product_repo = DieselRepository::new(&pool);
     let mut list_query = ProductListQuery::default().crawler(crawler.id);
 
     let page = params.page.unwrap_or(1);
@@ -47,9 +43,9 @@ pub async fn api_v1_products(
     let result = match &params.query {
         Some(query) if !query.is_empty() => {
             list_query = list_query.search(query);
-            product_repo.search_products(list_query)
+            repo.search_products(list_query)
         }
-        _ => product_repo.list_products(list_query),
+        _ => repo.list_products(list_query),
     };
 
     match result {

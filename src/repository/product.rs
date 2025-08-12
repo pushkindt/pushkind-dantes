@@ -14,11 +14,11 @@ struct ProductCount {
     count: i64,
 }
 
-impl ProductReader for DieselRepository<'_> {
+impl ProductReader for DieselRepository {
     fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
         use pushkind_common::schema::dantes::products;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let item = products::table
             .filter(products::id.eq(id))
@@ -31,7 +31,7 @@ impl ProductReader for DieselRepository<'_> {
     fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>> {
         use pushkind_common::schema::dantes::product_benchmark;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let items: Vec<(i32, f32)> = product_benchmark::table
             .filter(product_benchmark::benchmark_id.eq(benchmark_id))
@@ -45,7 +45,7 @@ impl ProductReader for DieselRepository<'_> {
     fn list_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
         use pushkind_common::schema::dantes::{crawlers, product_benchmark, products};
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let query_builder = || {
             let mut items = products::table.into_boxed::<diesel::sqlite::Sqlite>();
@@ -100,7 +100,7 @@ impl ProductReader for DieselRepository<'_> {
     }
 
     fn search_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let match_query = match &query.search {
             None => return Ok((0, vec![])),
@@ -200,4 +200,4 @@ impl ProductReader for DieselRepository<'_> {
         Ok((total, items))
     }
 }
-impl ProductWriter for DieselRepository<'_> {}
+impl ProductWriter for DieselRepository {}
