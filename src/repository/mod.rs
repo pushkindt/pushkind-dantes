@@ -10,6 +10,8 @@ use pushkind_common::repository::errors::RepositoryResult;
 pub mod benchmark;
 pub mod crawler;
 pub mod product;
+#[cfg(test)]
+pub mod test;
 
 /// Repository implementation backed by Diesel and SQLite.
 ///
