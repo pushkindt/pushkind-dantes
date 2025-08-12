@@ -1,12 +1,14 @@
+use actix_web::http::header;
 use actix_web::{HttpResponse, Responder, get, web};
 use actix_web_flash_messages::IncomingFlashMessages;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
-use pushkind_common::routes::ensure_role;
 use pushkind_common::routes::{base_context, render_template};
 use tera::Tera;
 
-use crate::repository::{CrawlerReader, DieselRepository};
+use crate::repository::DieselRepository;
+use crate::services::errors::ServiceError;
+use crate::services::main::show_index as show_index_service;
 
 #[get("/")]
 pub async fn index(
@@ -16,26 +18,23 @@ pub async fn index(
     server_config: web::Data<CommonServerConfig>,
     tera: web::Data<Tera>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
-        return response;
-    }
+    match show_index_service(repo.get_ref(), &user) {
+        Ok(crawlers) => {
+            let mut context = base_context(
+                &flash_messages,
+                &user,
+                "index",
+                &server_config.auth_service_url,
+            );
 
-    let mut context = base_context(
-        &flash_messages,
-        &user,
-        "index",
-        &server_config.auth_service_url,
-    );
+            context.insert("crawlers", &crawlers);
 
-    let crawlers = match repo.list_crawlers(user.hub_id) {
-        Ok(crawlers) => crawlers,
-        Err(e) => {
-            log::error!("Failed to list crawlers: {e}");
-            return HttpResponse::InternalServerError().finish();
+            render_template(&tera, "main/index.html", &context)
         }
-    };
-
-    context.insert("crawlers", &crawlers);
-
-    render_template(&tera, "main/index.html", &context)
+        Err(ServiceError::Unauthorized) => HttpResponse::Found()
+            .append_header((header::LOCATION, "/na"))
+            .finish(),
+        Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
+        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
+    }
 }
