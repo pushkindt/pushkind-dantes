@@ -56,9 +56,9 @@ pub async fn show_benchmarks(
 
     let repo = DieselBenchmarkRepository::new(&pool);
 
-    let benchmarks = match repo
-        .list(BenchmarkListQuery::new(user.hub_id).paginate(page, DEFAULT_ITEMS_PER_PAGE))
-    {
+    let benchmarks = match repo.list_benchmarks(
+        BenchmarkListQuery::new(user.hub_id).paginate(page, DEFAULT_ITEMS_PER_PAGE),
+    ) {
         Ok((total, benchmarks)) => {
             Paginated::new(benchmarks, page, total.div_ceil(DEFAULT_ITEMS_PER_PAGE))
         }
@@ -97,7 +97,7 @@ pub async fn show_benchmark(
 
     let benchmark_repo = DieselBenchmarkRepository::new(&pool);
 
-    let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
+    let benchmark = match benchmark_repo.get_benchmark_by_id(benchmark_id) {
         Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
@@ -111,7 +111,7 @@ pub async fn show_benchmark(
 
     let crawler_repo = DieselCrawlerRepository::new(&pool);
 
-    let crawlers = match crawler_repo.list(user.hub_id) {
+    let crawlers = match crawler_repo.list_crawlers(user.hub_id) {
         Ok(crawlers) => crawlers,
         Err(e) => {
             log::error!("Failed to list crawlers: {e}");
@@ -124,7 +124,7 @@ pub async fn show_benchmark(
     let mut products: Vec<(Crawler, Vec<Product>)> = vec![];
 
     for crawler in crawlers {
-        let crawler_products = match product_repo.list(
+        let crawler_products = match product_repo.list_products(
             ProductListQuery::default()
                 .benchmark(benchmark_id)
                 .crawler(crawler.id),
@@ -172,7 +172,7 @@ pub async fn add_benchmark(
     let new_benchmark: NewBenchmark = form.into_new_benchmark(user.hub_id);
 
     let repo = DieselBenchmarkRepository::new(&pool);
-    match repo.create(&[new_benchmark]) {
+    match repo.create_benchmark(&[new_benchmark]) {
         Ok(_) => {
             FlashMessage::success("Бенчмарк добавлен.".to_string()).send();
         }
@@ -199,7 +199,7 @@ pub async fn match_benchmark(
 
     let benchmark_repo = DieselBenchmarkRepository::new(&pool);
 
-    let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
+    let benchmark = match benchmark_repo.get_benchmark_by_id(benchmark_id) {
         Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
@@ -246,7 +246,7 @@ pub async fn upload_benchmarks(
         }
     };
 
-    match benchmark_repo.create(&benchmarks) {
+    match benchmark_repo.create_benchmark(&benchmarks) {
         Ok(_) => {
             FlashMessage::success("Бенчмарки добавлены.".to_string()).send();
         }
@@ -275,7 +275,7 @@ pub async fn update_benchmark_prices(
     let crawler_repo = DieselCrawlerRepository::new(&pool);
     let benchmark_repo = DieselBenchmarkRepository::new(&pool);
 
-    let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
+    let benchmark = match benchmark_repo.get_benchmark_by_id(benchmark_id) {
         Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
@@ -287,7 +287,7 @@ pub async fn update_benchmark_prices(
         }
     };
 
-    let crawlers = match crawler_repo.list(user.hub_id) {
+    let crawlers = match crawler_repo.list_crawlers(user.hub_id) {
         Ok(crawlers) => crawlers,
         Err(e) => {
             log::error!("Failed to list crawlers: {e}");
@@ -298,7 +298,7 @@ pub async fn update_benchmark_prices(
     let product_repo = DieselProductRepository::new(&pool);
 
     for crawler in crawlers {
-        let crawler_products = match product_repo.list(
+        let crawler_products = match product_repo.list_products(
             ProductListQuery::default()
                 .benchmark(benchmark.id)
                 .crawler(crawler.id),
@@ -354,7 +354,7 @@ pub async fn delete_benchmark_product(
     let benchmark_id = form.benchmark_id;
     let product_id = form.product_id;
 
-    let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
+    let benchmark = match benchmark_repo.get_benchmark_by_id(benchmark_id) {
         Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
@@ -366,7 +366,7 @@ pub async fn delete_benchmark_product(
         }
     };
 
-    let product = match product_repo.get_by_id(product_id) {
+    let product = match product_repo.get_product_by_id(product_id) {
         Ok(Some(product)) => product,
         Ok(None) => {
             FlashMessage::error("Товар не существует.").send();
@@ -378,7 +378,7 @@ pub async fn delete_benchmark_product(
         }
     };
 
-    let _crawler = match crawler_repo.get_by_id(product.crawler_id) {
+    let _crawler = match crawler_repo.get_crawler_by_id(product.crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             log::error!("Failed to get crawler: {e}");
@@ -417,7 +417,7 @@ pub async fn create_benchmark_product(
     let benchmark_id = form.benchmark_id;
     let product_id = form.product_id;
 
-    let benchmark = match benchmark_repo.get_by_id(benchmark_id) {
+    let benchmark = match benchmark_repo.get_benchmark_by_id(benchmark_id) {
         Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
@@ -429,7 +429,7 @@ pub async fn create_benchmark_product(
         }
     };
 
-    let product = match product_repo.get_by_id(product_id) {
+    let product = match product_repo.get_product_by_id(product_id) {
         Ok(Some(product)) => product,
         Ok(None) => {
             FlashMessage::error("Товар не существует").send();
@@ -441,7 +441,7 @@ pub async fn create_benchmark_product(
         }
     };
 
-    let _crawler = match crawler_repo.get_by_id(product.crawler_id) {
+    let _crawler = match crawler_repo.get_crawler_by_id(product.crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             log::error!("Failed to get crawler: {e}");

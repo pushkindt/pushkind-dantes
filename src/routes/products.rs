@@ -50,7 +50,7 @@ pub async fn show_products(
 
     let crawler_id = crawler_id.into_inner();
 
-    let crawler = match crawler_repo.get_by_id(crawler_id) {
+    let crawler = match crawler_repo.get_crawler_by_id(crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             log::error!("Failed to get crawler: {e}");
@@ -62,7 +62,7 @@ pub async fn show_products(
         }
     };
 
-    let products = match product_repo.list(
+    let products = match product_repo.list_products(
         ProductListQuery::default()
             .crawler(crawler_id)
             .paginate(page, DEFAULT_ITEMS_PER_PAGE),
@@ -97,7 +97,7 @@ pub async fn crawl_crawler(
 
     let repo = DieselCrawlerRepository::new(&pool);
 
-    let crawler = match repo.get_by_id(crawler_id) {
+    let crawler = match repo.get_crawler_by_id(crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             log::error!("Failed to get crawler by id: {e}");
@@ -139,7 +139,7 @@ pub async fn update_crawler_prices(
     let crawler_repo = DieselCrawlerRepository::new(&pool);
     let product_repo = DieselProductRepository::new(&pool);
 
-    let crawler = match crawler_repo.get_by_id(crawler_id) {
+    let crawler = match crawler_repo.get_crawler_by_id(crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             log::error!("Failed to get crawler by id: {e}");
@@ -151,14 +151,14 @@ pub async fn update_crawler_prices(
         }
     };
 
-    let crawler_products = match product_repo.list(ProductListQuery::default().crawler(crawler_id))
-    {
-        Ok((_, crawler_products)) => crawler_products,
-        Err(e) => {
-            log::error!("Failed to get products: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
+    let crawler_products =
+        match product_repo.list_products(ProductListQuery::default().crawler(crawler_id)) {
+            Ok((_, crawler_products)) => crawler_products,
+            Err(e) => {
+                log::error!("Failed to get products: {e}");
+                return HttpResponse::InternalServerError().finish();
+            }
+        };
 
     let message = ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((
         crawler.selector,

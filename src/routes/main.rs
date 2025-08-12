@@ -31,7 +31,7 @@ pub async fn index(
 
     let repo = DieselCrawlerRepository::new(&pool);
 
-    let crawlers = match repo.list(user.hub_id) {
+    let crawlers = match repo.list_crawlers(user.hub_id) {
         Ok(crawlers) => crawlers,
         Err(e) => {
             log::error!("Failed to list crawlers: {e}");

@@ -63,28 +63,31 @@ impl ProductListQuery {
 }
 
 pub trait CrawlerReader {
-    fn list(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>>;
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>>;
+    fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>>;
+    fn get_crawler_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>>;
 }
 
 pub trait CrawlerWriter {}
 
 pub trait ProductReader {
-    fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
+    fn list_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
     fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>>;
-    fn search(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Product>>;
+    fn search_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
+    fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>>;
 }
 
 pub trait ProductWriter {}
 
 pub trait BenchmarkReader {
-    fn list(&self, query: BenchmarkListQuery) -> RepositoryResult<(usize, Vec<Benchmark>)>;
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>>;
+    fn list_benchmarks(
+        &self,
+        query: BenchmarkListQuery,
+    ) -> RepositoryResult<(usize, Vec<Benchmark>)>;
+    fn get_benchmark_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>>;
 }
 
 pub trait BenchmarkWriter {
-    fn create(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize>;
+    fn create_benchmark(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize>;
     fn remove_benchmark_association(
         &self,
         benchmark_id: i32,

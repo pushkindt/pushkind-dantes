@@ -19,7 +19,7 @@ impl<'a> DieselBenchmarkRepository<'a> {
 }
 
 impl BenchmarkReader for DieselBenchmarkRepository<'_> {
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>> {
+    fn get_benchmark_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>> {
         use pushkind_common::schema::dantes::benchmarks;
 
         let mut conn = self.pool.get()?;
@@ -32,7 +32,10 @@ impl BenchmarkReader for DieselBenchmarkRepository<'_> {
         Ok(benchmark.map(Into::into))
     }
 
-    fn list(&self, query: BenchmarkListQuery) -> RepositoryResult<(usize, Vec<Benchmark>)> {
+    fn list_benchmarks(
+        &self,
+        query: BenchmarkListQuery,
+    ) -> RepositoryResult<(usize, Vec<Benchmark>)> {
         use pushkind_common::schema::dantes::benchmarks;
 
         let mut conn = self.pool.get()?;
@@ -66,7 +69,7 @@ impl BenchmarkReader for DieselBenchmarkRepository<'_> {
     }
 }
 impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
-    fn create(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize> {
+    fn create_benchmark(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::benchmarks;
 
         let mut conn = self.pool.get()?;

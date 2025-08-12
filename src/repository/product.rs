@@ -26,7 +26,7 @@ struct ProductCount {
 }
 
 impl ProductReader for DieselProductRepository<'_> {
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
+    fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
         use pushkind_common::schema::dantes::products;
 
         let mut conn = self.pool.get()?;
@@ -53,7 +53,7 @@ impl ProductReader for DieselProductRepository<'_> {
         Ok(items.into_iter().collect())
     }
 
-    fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
+    fn list_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
         use pushkind_common::schema::dantes::{crawlers, product_benchmark, products};
 
         let mut conn = self.pool.get()?;
@@ -110,7 +110,7 @@ impl ProductReader for DieselProductRepository<'_> {
         Ok((total, items))
     }
 
-    fn search(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
+    fn search_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
         let mut conn = self.pool.get()?;
 
         let match_query = match &query.search {

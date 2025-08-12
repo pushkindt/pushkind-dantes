@@ -17,7 +17,7 @@ impl<'a> DieselCrawlerRepository<'a> {
 }
 
 impl CrawlerReader for DieselCrawlerRepository<'_> {
-    fn list(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>> {
+    fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>> {
         use pushkind_common::schema::dantes::crawlers;
 
         let mut conn = self.pool.get()?;
@@ -33,7 +33,7 @@ impl CrawlerReader for DieselCrawlerRepository<'_> {
             .collect()) // Convert DbCrawler to DomainCrawler
     }
 
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>> {
+    fn get_crawler_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>> {
         use pushkind_common::schema::dantes::crawlers;
 
         let mut conn = self.pool.get()?;

@@ -30,7 +30,7 @@ pub async fn api_v1_products(
 
     let crawler_repo = DieselCrawlerRepository::new(&pool);
 
-    let crawler = match crawler_repo.get_by_id(params.crawler_id) {
+    let crawler = match crawler_repo.get_crawler_by_id(params.crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
         Err(e) => {
             error!("Failed to get crawler: {e}");
@@ -49,9 +49,9 @@ pub async fn api_v1_products(
     let result = match &params.query {
         Some(query) if !query.is_empty() => {
             list_query = list_query.search(query);
-            product_repo.search(list_query)
+            product_repo.search_products(list_query)
         }
-        _ => product_repo.list(list_query),
+        _ => product_repo.list_products(list_query),
     };
 
     match result {
