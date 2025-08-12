@@ -1,24 +1,14 @@
 use diesel::prelude::*;
 use pushkind_common::db::DbPool;
-use pushkind_common::repository::errors::RepositoryResult;
-
-use crate::repository::{BenchmarkListQuery, BenchmarkReader, BenchmarkWriter};
 use pushkind_common::domain::benchmark::{Benchmark, NewBenchmark};
 use pushkind_common::models::benchmark::{
     Benchmark as DbBenchmark, NewBenchmark as DbNewBenchmark,
 };
+use pushkind_common::repository::errors::RepositoryResult;
 
-pub struct DieselBenchmarkRepository<'a> {
-    pub pool: &'a DbPool,
-}
+use crate::repository::{BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, DieselRepository};
 
-impl<'a> DieselBenchmarkRepository<'a> {
-    pub fn new(pool: &'a DbPool) -> Self {
-        Self { pool }
-    }
-}
-
-impl BenchmarkReader for DieselBenchmarkRepository<'_> {
+impl BenchmarkReader for DieselRepository<'_> {
     fn get_benchmark_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>> {
         use pushkind_common::schema::dantes::benchmarks;
 
@@ -68,7 +58,7 @@ impl BenchmarkReader for DieselBenchmarkRepository<'_> {
         Ok((total, items))
     }
 }
-impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
+impl BenchmarkWriter for DieselRepository<'_> {
     fn create_benchmark(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::benchmarks;
 

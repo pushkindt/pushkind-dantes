@@ -2,22 +2,11 @@ use std::collections::HashMap;
 
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Integer, Text};
-use pushkind_common::db::DbPool;
 use pushkind_common::domain::product::Product;
 use pushkind_common::models::product::Product as DbProduct;
 use pushkind_common::repository::errors::RepositoryResult;
 
-use crate::repository::{ProductListQuery, ProductReader, ProductWriter};
-
-pub struct DieselProductRepository<'a> {
-    pub pool: &'a DbPool,
-}
-
-impl<'a> DieselProductRepository<'a> {
-    pub fn new(pool: &'a DbPool) -> Self {
-        Self { pool }
-    }
-}
+use crate::repository::{DieselRepository, ProductListQuery, ProductReader, ProductWriter};
 
 #[derive(QueryableByName)]
 struct ProductCount {
@@ -25,7 +14,7 @@ struct ProductCount {
     count: i64,
 }
 
-impl ProductReader for DieselProductRepository<'_> {
+impl ProductReader for DieselRepository<'_> {
     fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
         use pushkind_common::schema::dantes::products;
 
@@ -211,4 +200,4 @@ impl ProductReader for DieselProductRepository<'_> {
         Ok((total, items))
     }
 }
-impl ProductWriter for DieselProductRepository<'_> {}
+impl ProductWriter for DieselRepository<'_> {}

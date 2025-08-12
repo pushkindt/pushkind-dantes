@@ -1,15 +1,25 @@
 use std::collections::HashMap;
 
-use pushkind_common::pagination::Pagination;
-use pushkind_common::repository::errors::RepositoryResult;
-
+use pushkind_common::db::DbPool;
 use pushkind_common::domain::benchmark::{Benchmark, NewBenchmark};
 use pushkind_common::domain::crawler::Crawler;
 use pushkind_common::domain::product::Product;
+use pushkind_common::pagination::Pagination;
+use pushkind_common::repository::errors::RepositoryResult;
 
 pub mod benchmark;
 pub mod crawler;
 pub mod product;
+
+pub struct DieselRepository<'a> {
+    pub pool: &'a DbPool,
+}
+
+impl<'a> DieselRepository<'a> {
+    pub fn new(pool: &'a DbPool) -> Self {
+        Self { pool }
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct ProductListQuery {

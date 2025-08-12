@@ -7,9 +7,7 @@ use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
 use pushkind_common::routes::ensure_role;
 use serde::Deserialize;
 
-use crate::repository::crawler::DieselCrawlerRepository;
-use crate::repository::product::DieselProductRepository;
-use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
+use crate::repository::{CrawlerReader, DieselRepository, ProductListQuery, ProductReader};
 
 #[derive(Deserialize, Debug)]
 struct ApiV1ProductsQueryParams {
@@ -28,7 +26,7 @@ pub async fn api_v1_products(
         return HttpResponse::Unauthorized().finish();
     }
 
-    let crawler_repo = DieselCrawlerRepository::new(&pool);
+    let crawler_repo = DieselRepository::new(&pool);
 
     let crawler = match crawler_repo.get_crawler_by_id(params.crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
@@ -39,7 +37,7 @@ pub async fn api_v1_products(
         _ => return HttpResponse::NotFound().finish(),
     };
 
-    let product_repo = DieselProductRepository::new(&pool);
+    let product_repo = DieselRepository::new(&pool);
     let mut list_query = ProductListQuery::default().crawler(crawler.id);
 
     let page = params.page.unwrap_or(1);

@@ -13,9 +13,7 @@ use serde::Deserialize;
 use tera::Tera;
 
 use crate::models::config::ServerConfig;
-use crate::repository::crawler::DieselCrawlerRepository;
-use crate::repository::product::DieselProductRepository;
-use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
+use crate::repository::{CrawlerReader, DieselRepository, ProductListQuery, ProductReader};
 
 #[derive(Deserialize)]
 struct ProductsQueryParams {
@@ -45,8 +43,8 @@ pub async fn show_products(
         &server_config.auth_service_url,
     );
 
-    let product_repo = DieselProductRepository::new(&pool);
-    let crawler_repo = DieselCrawlerRepository::new(&pool);
+    let product_repo = DieselRepository::new(&pool);
+    let crawler_repo = DieselRepository::new(&pool);
 
     let crawler_id = crawler_id.into_inner();
 
@@ -95,7 +93,7 @@ pub async fn crawl_crawler(
 
     let crawler_id = crawler_id.into_inner();
 
-    let repo = DieselCrawlerRepository::new(&pool);
+    let repo = DieselRepository::new(&pool);
 
     let crawler = match repo.get_crawler_by_id(crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
@@ -136,8 +134,8 @@ pub async fn update_crawler_prices(
 
     let crawler_id = crawler_id.into_inner();
 
-    let crawler_repo = DieselCrawlerRepository::new(&pool);
-    let product_repo = DieselProductRepository::new(&pool);
+    let crawler_repo = DieselRepository::new(&pool);
+    let product_repo = DieselRepository::new(&pool);
 
     let crawler = match crawler_repo.get_crawler_by_id(crawler_id) {
         Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,

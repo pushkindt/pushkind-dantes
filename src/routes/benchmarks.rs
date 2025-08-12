@@ -21,10 +21,7 @@ use crate::forms::benchmarks::{
     AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
 };
 use crate::models::config::ServerConfig;
-use crate::repository::benchmark::DieselBenchmarkRepository;
-use crate::repository::crawler::DieselCrawlerRepository;
-use crate::repository::product::DieselProductRepository;
-use crate::repository::{BenchmarkListQuery, ProductListQuery};
+use crate::repository::{BenchmarkListQuery, DieselRepository, ProductListQuery};
 use crate::repository::{BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductReader};
 
 #[derive(Deserialize)]
@@ -54,7 +51,7 @@ pub async fn show_benchmarks(
         &server_config.auth_service_url,
     );
 
-    let repo = DieselBenchmarkRepository::new(&pool);
+    let repo = DieselRepository::new(&pool);
 
     let benchmarks = match repo.list_benchmarks(
         BenchmarkListQuery::new(user.hub_id).paginate(page, DEFAULT_ITEMS_PER_PAGE),
@@ -95,7 +92,7 @@ pub async fn show_benchmark(
 
     let benchmark_id = benchmark_id.into_inner();
 
-    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+    let benchmark_repo = DieselRepository::new(&pool);
 
     let benchmark = match benchmark_repo.get_benchmark_by_id(benchmark_id) {
         Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
@@ -109,7 +106,7 @@ pub async fn show_benchmark(
         }
     };
 
-    let crawler_repo = DieselCrawlerRepository::new(&pool);
+    let crawler_repo = DieselRepository::new(&pool);
 
     let crawlers = match crawler_repo.list_crawlers(user.hub_id) {
         Ok(crawlers) => crawlers,
@@ -119,7 +116,7 @@ pub async fn show_benchmark(
         }
     };
 
-    let product_repo = DieselProductRepository::new(&pool);
+    let product_repo = DieselRepository::new(&pool);
 
     let mut products: Vec<(Crawler, Vec<Product>)> = vec![];
 
@@ -171,7 +168,7 @@ pub async fn add_benchmark(
 
     let new_benchmark: NewBenchmark = form.into_new_benchmark(user.hub_id);
 
-    let repo = DieselBenchmarkRepository::new(&pool);
+    let repo = DieselRepository::new(&pool);
     match repo.create_benchmark(&[new_benchmark]) {
         Ok(_) => {
             FlashMessage::success("Бенчмарк добавлен.".to_string()).send();
@@ -197,7 +194,7 @@ pub async fn match_benchmark(
 
     let benchmark_id = benchmark_id.into_inner();
 
-    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+    let benchmark_repo = DieselRepository::new(&pool);
 
     let benchmark = match benchmark_repo.get_benchmark_by_id(benchmark_id) {
         Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
@@ -235,7 +232,7 @@ pub async fn upload_benchmarks(
         return response;
     };
 
-    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+    let benchmark_repo = DieselRepository::new(&pool);
 
     let benchmarks = match form.parse(user.hub_id) {
         Ok(benchmarks) => benchmarks,
@@ -272,8 +269,8 @@ pub async fn update_benchmark_prices(
 
     let benchmark_id = benchmark_id.into_inner();
 
-    let crawler_repo = DieselCrawlerRepository::new(&pool);
-    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
+    let crawler_repo = DieselRepository::new(&pool);
+    let benchmark_repo = DieselRepository::new(&pool);
 
     let benchmark = match benchmark_repo.get_benchmark_by_id(benchmark_id) {
         Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
@@ -295,7 +292,7 @@ pub async fn update_benchmark_prices(
         }
     };
 
-    let product_repo = DieselProductRepository::new(&pool);
+    let product_repo = DieselRepository::new(&pool);
 
     for crawler in crawlers {
         let crawler_products = match product_repo.list_products(
@@ -347,9 +344,9 @@ pub async fn delete_benchmark_product(
         return response;
     };
 
-    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
-    let product_repo = DieselProductRepository::new(&pool);
-    let crawler_repo = DieselCrawlerRepository::new(&pool);
+    let benchmark_repo = DieselRepository::new(&pool);
+    let product_repo = DieselRepository::new(&pool);
+    let crawler_repo = DieselRepository::new(&pool);
 
     let benchmark_id = form.benchmark_id;
     let product_id = form.product_id;
@@ -410,9 +407,9 @@ pub async fn create_benchmark_product(
         return response;
     };
 
-    let benchmark_repo = DieselBenchmarkRepository::new(&pool);
-    let product_repo = DieselProductRepository::new(&pool);
-    let crawler_repo = DieselCrawlerRepository::new(&pool);
+    let benchmark_repo = DieselRepository::new(&pool);
+    let product_repo = DieselRepository::new(&pool);
+    let crawler_repo = DieselRepository::new(&pool);
 
     let benchmark_id = form.benchmark_id;
     let product_id = form.product_id;

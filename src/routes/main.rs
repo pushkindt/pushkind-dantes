@@ -7,8 +7,7 @@ use pushkind_common::routes::ensure_role;
 use pushkind_common::routes::{base_context, render_template};
 use tera::Tera;
 
-use crate::repository::CrawlerReader;
-use crate::repository::crawler::DieselCrawlerRepository;
+use crate::repository::{CrawlerReader, DieselRepository};
 
 #[get("/")]
 pub async fn index(
@@ -29,7 +28,7 @@ pub async fn index(
         &server_config.auth_service_url,
     );
 
-    let repo = DieselCrawlerRepository::new(&pool);
+    let repo = DieselRepository::new(&pool);
 
     let crawlers = match repo.list_crawlers(user.hub_id) {
         Ok(crawlers) => crawlers,
