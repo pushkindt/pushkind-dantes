@@ -1,28 +1,17 @@
 use diesel::prelude::*;
-use pushkind_common::db::DbPool;
-use pushkind_common::repository::errors::RepositoryResult;
-
-use crate::repository::{BenchmarkListQuery, BenchmarkReader, BenchmarkWriter};
 use pushkind_common::domain::benchmark::{Benchmark, NewBenchmark};
 use pushkind_common::models::benchmark::{
     Benchmark as DbBenchmark, NewBenchmark as DbNewBenchmark,
 };
+use pushkind_common::repository::errors::RepositoryResult;
 
-pub struct DieselBenchmarkRepository<'a> {
-    pub pool: &'a DbPool,
-}
+use crate::repository::{BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, DieselRepository};
 
-impl<'a> DieselBenchmarkRepository<'a> {
-    pub fn new(pool: &'a DbPool) -> Self {
-        Self { pool }
-    }
-}
-
-impl BenchmarkReader for DieselBenchmarkRepository<'_> {
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>> {
+impl BenchmarkReader for DieselRepository {
+    fn get_benchmark_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>> {
         use pushkind_common::schema::dantes::benchmarks;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let benchmark = benchmarks::table
             .filter(benchmarks::id.eq(id))
@@ -32,10 +21,13 @@ impl BenchmarkReader for DieselBenchmarkRepository<'_> {
         Ok(benchmark.map(Into::into))
     }
 
-    fn list(&self, query: BenchmarkListQuery) -> RepositoryResult<(usize, Vec<Benchmark>)> {
+    fn list_benchmarks(
+        &self,
+        query: BenchmarkListQuery,
+    ) -> RepositoryResult<(usize, Vec<Benchmark>)> {
         use pushkind_common::schema::dantes::benchmarks;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let query_builder = || {
             benchmarks::table
@@ -65,11 +57,11 @@ impl BenchmarkReader for DieselBenchmarkRepository<'_> {
         Ok((total, items))
     }
 }
-impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
-    fn create(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize> {
+impl BenchmarkWriter for DieselRepository {
+    fn create_benchmark(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::benchmarks;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let db_benchmarks = benchmarks
             .iter()
@@ -90,7 +82,7 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
     ) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::product_benchmark;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let affected = diesel::delete(
             product_benchmark::table
@@ -110,7 +102,7 @@ impl BenchmarkWriter for DieselBenchmarkRepository<'_> {
     ) -> RepositoryResult<usize> {
         use pushkind_common::schema::dantes::product_benchmark;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         // Insert association entry with similarity distance
         let affected = diesel::insert_into(product_benchmark::table)

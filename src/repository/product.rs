@@ -2,22 +2,11 @@ use std::collections::HashMap;
 
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Integer, Text};
-use pushkind_common::db::DbPool;
 use pushkind_common::domain::product::Product;
 use pushkind_common::models::product::Product as DbProduct;
 use pushkind_common::repository::errors::RepositoryResult;
 
-use crate::repository::{ProductListQuery, ProductReader, ProductWriter};
-
-pub struct DieselProductRepository<'a> {
-    pub pool: &'a DbPool,
-}
-
-impl<'a> DieselProductRepository<'a> {
-    pub fn new(pool: &'a DbPool) -> Self {
-        Self { pool }
-    }
-}
+use crate::repository::{DieselRepository, ProductListQuery, ProductReader, ProductWriter};
 
 #[derive(QueryableByName)]
 struct ProductCount {
@@ -25,11 +14,11 @@ struct ProductCount {
     count: i64,
 }
 
-impl ProductReader for DieselProductRepository<'_> {
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
+impl ProductReader for DieselRepository {
+    fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
         use pushkind_common::schema::dantes::products;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let item = products::table
             .filter(products::id.eq(id))
@@ -42,7 +31,7 @@ impl ProductReader for DieselProductRepository<'_> {
     fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>> {
         use pushkind_common::schema::dantes::product_benchmark;
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let items: Vec<(i32, f32)> = product_benchmark::table
             .filter(product_benchmark::benchmark_id.eq(benchmark_id))
@@ -53,10 +42,10 @@ impl ProductReader for DieselProductRepository<'_> {
         Ok(items.into_iter().collect())
     }
 
-    fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
+    fn list_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
         use pushkind_common::schema::dantes::{crawlers, product_benchmark, products};
 
-        let mut conn = self.pool.get()?;
+        let mut conn = self.conn()?;
 
         let query_builder = || {
             let mut items = products::table.into_boxed::<diesel::sqlite::Sqlite>();
@@ -110,8 +99,8 @@ impl ProductReader for DieselProductRepository<'_> {
         Ok((total, items))
     }
 
-    fn search(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
-        let mut conn = self.pool.get()?;
+    fn search_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
+        let mut conn = self.conn()?;
 
         let match_query = match &query.search {
             None => return Ok((0, vec![])),
@@ -211,4 +200,4 @@ impl ProductReader for DieselProductRepository<'_> {
         Ok((total, items))
     }
 }
-impl ProductWriter for DieselProductRepository<'_> {}
+impl ProductWriter for DieselRepository {}

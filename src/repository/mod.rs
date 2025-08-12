@@ -1,15 +1,30 @@
 use std::collections::HashMap;
 
-use pushkind_common::pagination::Pagination;
-use pushkind_common::repository::errors::RepositoryResult;
-
+use pushkind_common::db::{DbConnection, DbPool};
 use pushkind_common::domain::benchmark::{Benchmark, NewBenchmark};
 use pushkind_common::domain::crawler::Crawler;
 use pushkind_common::domain::product::Product;
+use pushkind_common::pagination::Pagination;
+use pushkind_common::repository::errors::RepositoryResult;
 
 pub mod benchmark;
 pub mod crawler;
 pub mod product;
+
+#[derive(Clone)]
+pub struct DieselRepository {
+    pool: DbPool, // r2d2::Pool is cheap to clone
+}
+
+impl DieselRepository {
+    pub fn new(pool: DbPool) -> Self {
+        Self { pool }
+    }
+
+    fn conn(&self) -> RepositoryResult<DbConnection> {
+        Ok(self.pool.get()?)
+    }
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct ProductListQuery {
@@ -63,28 +78,31 @@ impl ProductListQuery {
 }
 
 pub trait CrawlerReader {
-    fn list(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>>;
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>>;
+    fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>>;
+    fn get_crawler_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>>;
 }
 
 pub trait CrawlerWriter {}
 
 pub trait ProductReader {
-    fn list(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
+    fn list_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
     fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>>;
-    fn search(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Product>>;
+    fn search_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
+    fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>>;
 }
 
 pub trait ProductWriter {}
 
 pub trait BenchmarkReader {
-    fn list(&self, query: BenchmarkListQuery) -> RepositoryResult<(usize, Vec<Benchmark>)>;
-    fn get_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>>;
+    fn list_benchmarks(
+        &self,
+        query: BenchmarkListQuery,
+    ) -> RepositoryResult<(usize, Vec<Benchmark>)>;
+    fn get_benchmark_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>>;
 }
 
 pub trait BenchmarkWriter {
-    fn create(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize>;
+    fn create_benchmark(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize>;
     fn remove_benchmark_association(
         &self,
         benchmark_id: i32,
