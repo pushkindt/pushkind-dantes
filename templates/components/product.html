@@ -12,7 +12,11 @@
         </div>
     {% endif %}
     <div class="col overflow-hidden">
-        {{product.name}}
+        {% if product.url %}
+            <a href="{{product.url}}">{{product.name}}</a>
+        {% else %}
+            {{product.name}}
+        {% endif %}
     </div>
     <div class="col overflow-hidden">
         {{product.sku}}
