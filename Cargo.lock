@@ -2050,6 +2050,7 @@ dependencies = [
  "log",
  "pushkind-common",
  "serde",
+ "serde_json",
  "tera",
  "thiserror 2.0.12",
  "validator",

@@ -1,10 +1,9 @@
+use actix_web::http::header;
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
-use pushkind_common::models::zmq::dantes::CrawlerSelector;
-use pushkind_common::models::zmq::dantes::ZMQMessage;
-use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
+use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQMessage};
 use pushkind_common::routes::{base_context, render_template};
 use pushkind_common::routes::{ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
@@ -13,6 +12,8 @@ use tera::Tera;
 
 use crate::models::config::ServerConfig;
 use crate::repository::{CrawlerReader, DieselRepository, ProductListQuery, ProductReader};
+use crate::services::errors::ServiceError;
+use crate::services::products::show_products as show_products_service;
 
 #[derive(Deserialize)]
 struct ProductsQueryParams {
@@ -29,51 +30,28 @@ pub async fn show_products(
     server_config: web::Data<CommonServerConfig>,
     tera: web::Data<Tera>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
-        return response;
-    }
-
     let page = params.page.unwrap_or(1);
-
-    let mut context = base_context(
-        &flash_messages,
-        &user,
-        "index",
-        &server_config.auth_service_url,
-    );
-
-    let crawler_id = crawler_id.into_inner();
-
-    let crawler = match repo.get_crawler_by_id(crawler_id) {
-        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
-        Err(e) => {
-            log::error!("Failed to get crawler: {e}");
-            return HttpResponse::InternalServerError().finish();
+    match show_products_service(repo.get_ref(), &user, crawler_id.into_inner(), page) {
+        Ok((crawler, products)) => {
+            let mut context = base_context(
+                &flash_messages,
+                &user,
+                "index",
+                &server_config.auth_service_url,
+            );
+            context.insert("products", &products);
+            context.insert("crawler", &crawler);
+            render_template(&tera, "products/index.html", &context)
         }
-        _ => {
+        Err(ServiceError::Unauthorized) => HttpResponse::Found()
+            .append_header((header::LOCATION, "/na"))
+            .finish(),
+        Err(ServiceError::NotFound) => {
             FlashMessage::error("Парсер не существует").send();
-            return redirect("/");
+            redirect("/")
         }
-    };
-
-    let products = match repo.list_products(
-        ProductListQuery::default()
-            .crawler(crawler_id)
-            .paginate(page, DEFAULT_ITEMS_PER_PAGE),
-    ) {
-        Ok((total, products)) => {
-            Paginated::new(products, page, total.div_ceil(DEFAULT_ITEMS_PER_PAGE))
-        }
-        Err(e) => {
-            log::error!("Failed to list products: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-
-    context.insert("products", &products);
-    context.insert("crawler", &crawler);
-
-    render_template(&tera, "products/index.html", &context)
+        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
+    }
 }
 
 #[post("/crawler/{crawler_id}/crawl")]
