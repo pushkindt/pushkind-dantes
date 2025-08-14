@@ -105,7 +105,7 @@ mod tests {
 
     #[test]
     fn returns_products_for_authorized_user() {
-        let repo = TestRepository::new(vec![sample_crawler()], vec![sample_product()]);
+        let repo = TestRepository::new(vec![sample_crawler()], vec![sample_product()], vec![]);
         let user = sample_user();
 
         let (crawler, paginated) = show_products(&repo, &user, 1, 1).unwrap();

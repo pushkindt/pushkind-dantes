@@ -1,22 +1,26 @@
 use std::collections::HashMap;
 
-use pushkind_common::domain::{crawler::Crawler, product::Product};
+use pushkind_common::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use pushkind_common::repository::errors::RepositoryResult;
 
-use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
+use crate::repository::{
+    BenchmarkListQuery, BenchmarkReader, CrawlerReader, ProductListQuery, ProductReader,
+};
 
 /// Simple in-memory repository used for unit tests.
 #[derive(Default)]
 pub struct TestRepository {
     crawlers: HashMap<i32, Crawler>,
     products: Vec<Product>,
+    benchmarks: Vec<Benchmark>,
 }
 
 impl TestRepository {
-    pub fn new(crawlers: Vec<Crawler>, products: Vec<Product>) -> Self {
+    pub fn new(crawlers: Vec<Crawler>, products: Vec<Product>, benchmarks: Vec<Benchmark>) -> Self {
         Self {
             crawlers: crawlers.into_iter().map(|c| (c.id, c)).collect(),
             products,
+            benchmarks,
         }
     }
 
@@ -50,18 +54,34 @@ impl TestRepository {
             embedding: p.embedding.clone(),
         }
     }
+
+    fn clone_benchmark(b: &Benchmark) -> Benchmark {
+        Benchmark {
+            id: b.id,
+            hub_id: b.hub_id,
+            name: b.name.clone(),
+            sku: b.sku.clone(),
+            category: b.category.clone(),
+            units: b.units.clone(),
+            price: b.price,
+            amount: b.amount,
+            description: b.description.clone(),
+            created_at: b.created_at,
+            updated_at: b.updated_at,
+            embedding: b.embedding.clone(),
+            processing: b.processing,
+        }
+    }
 }
 
 impl CrawlerReader for TestRepository {
     fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>> {
-        Ok(
-            self
-                .crawlers
-                .values()
-                .filter(|c| c.hub_id == hub_id)
-                .map(Self::clone_crawler)
-                .collect(),
-        )
+        Ok(self
+            .crawlers
+            .values()
+            .filter(|c| c.hub_id == hub_id)
+            .map(Self::clone_crawler)
+            .collect())
     }
 
     fn get_crawler_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>> {
@@ -105,3 +125,22 @@ impl ProductReader for TestRepository {
     }
 }
 
+impl BenchmarkReader for TestRepository {
+    fn list_benchmarks(
+        &self,
+        query: BenchmarkListQuery,
+    ) -> RepositoryResult<(usize, Vec<Benchmark>)> {
+        let mut items: Vec<Benchmark> = self.benchmarks.iter().map(Self::clone_benchmark).collect();
+        items.retain(|b| b.hub_id == query.hub_id);
+        let total = items.len();
+        Ok((total, items))
+    }
+
+    fn get_benchmark_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>> {
+        Ok(self
+            .benchmarks
+            .iter()
+            .find(|b| b.id == id)
+            .map(Self::clone_benchmark))
+    }
+}
