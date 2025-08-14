@@ -1,25 +1,14 @@
 <div class="row fw-bold">
-    {% if show_distances %}
-        <div class="col overflow-hidden" data-column="similarity">
-            Сходство ▲▼
-        </div>
-    {% endif %}
     <div class="col overflow-hidden" data-column="name">
         Название ▲▼
-    </div>
-    <div class="col overflow-hidden" data-column="sku">
-        Артикул ▲▼
     </div>
     <div class="col overflow-hidden" data-column="category">
         Категория ▲▼
     </div>
     <div class="col overflow-hidden" data-column="price">
-        Стоимость ▲▼
+        Цена {{constants::currency()}} / ед ▲▼
     </div>
     <div class="col overflow-hidden">
         Описание
-    </div>
-    <div class="col overflow-hidden">
-        Дата обновления
     </div>
 </div>
