@@ -88,9 +88,9 @@
                     });
                 });
 
-                document.querySelectorAll('.text-truncate').forEach(element => {
+                document.querySelectorAll('.toggle-text-truncate').forEach(element => {
                     element.addEventListener('click', () => {
-                    element.classList.remove('text-truncate');
+                        element.classList.toggle('text-truncate');
                     });
                 });
             });
