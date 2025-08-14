@@ -58,15 +58,13 @@ where
     };
 
     match result {
-        Ok((_total, products)) => Ok(
-            products
-                .into_iter()
-                .map(|mut p| {
-                    p.embedding = None;
-                    p
-                })
-                .collect::<Vec<Product>>(),
-        ),
+        Ok((_total, products)) => Ok(products
+            .into_iter()
+            .map(|mut p| {
+                p.embedding = None;
+                p
+            })
+            .collect::<Vec<Product>>()),
         Err(e) => {
             error!("Failed to list products: {e}");
             Err(ServiceError::Internal)
@@ -125,7 +123,7 @@ mod tests {
 
     #[test]
     fn returns_products_without_embeddings() {
-        let repo = TestRepository::new(vec![sample_crawler()], vec![sample_product()]);
+        let repo = TestRepository::new(vec![sample_crawler()], vec![sample_product()], vec![]);
         let user = sample_user();
         let params = ApiV1ProductsQueryParams {
             crawler_id: 1,
@@ -139,4 +137,3 @@ mod tests {
         assert!(result[0].embedding.is_none());
     }
 }
-

@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn returns_crawlers_for_authorized_user() {
-        let repo = TestRepository::new(vec![sample_crawler()], vec![]);
+        let repo = TestRepository::new(vec![sample_crawler()], vec![], vec![]);
         let user = sample_user();
 
         let result = show_index(&repo, &user).unwrap();

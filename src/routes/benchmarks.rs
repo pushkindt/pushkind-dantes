@@ -1,4 +1,5 @@
 use actix_multipart::form::MultipartForm;
+use actix_web::http::header;
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::domain::benchmark::NewBenchmark;
@@ -8,7 +9,6 @@ use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::models::zmq::dantes::CrawlerSelector;
 use pushkind_common::models::zmq::dantes::ZMQMessage;
-use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::{base_context, render_template};
 use pushkind_common::routes::{ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
@@ -20,8 +20,10 @@ use crate::forms::benchmarks::{
     AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
 };
 use crate::models::config::ServerConfig;
-use crate::repository::{BenchmarkListQuery, DieselRepository, ProductListQuery};
 use crate::repository::{BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductReader};
+use crate::repository::{DieselRepository, ProductListQuery};
+use crate::services::benchmarks::show_benchmarks as show_benchmarks_service;
+use crate::services::errors::ServiceError;
 
 #[derive(Deserialize)]
 struct BenchmarkQueryParams {
@@ -37,34 +39,26 @@ pub async fn show_benchmarks(
     server_config: web::Data<CommonServerConfig>,
     tera: web::Data<Tera>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
-        return response;
-    }
-
     let page = params.page.unwrap_or(1);
+    match show_benchmarks_service(repo.get_ref(), &user, page) {
+        Ok(benchmarks) => {
+            let mut context = base_context(
+                &flash_messages,
+                &user,
+                "benchmarks",
+                &server_config.auth_service_url,
+            );
 
-    let mut context = base_context(
-        &flash_messages,
-        &user,
-        "benchmarks",
-        &server_config.auth_service_url,
-    );
+            context.insert("benchmarks", &benchmarks);
 
-    let benchmarks = match repo.list_benchmarks(
-        BenchmarkListQuery::new(user.hub_id).paginate(page, DEFAULT_ITEMS_PER_PAGE),
-    ) {
-        Ok((total, benchmarks)) => {
-            Paginated::new(benchmarks, page, total.div_ceil(DEFAULT_ITEMS_PER_PAGE))
+            render_template(&tera, "benchmarks/index.html", &context)
         }
-        Err(e) => {
-            log::error!("Failed to list benchmarks: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-
-    context.insert("benchmarks", &benchmarks);
-
-    render_template(&tera, "benchmarks/index.html", &context)
+        Err(ServiceError::Unauthorized) => HttpResponse::Found()
+            .append_header((header::LOCATION, "/na"))
+            .finish(),
+        Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
+        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
+    }
 }
 
 #[get("/benchmark/{benchmark_id}")]
