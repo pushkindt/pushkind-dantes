@@ -1,6 +1,7 @@
 use log::error;
 use pushkind_common::domain::{crawler::Crawler, product::Product};
 use pushkind_common::models::auth::AuthenticatedUser;
+use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQMessage};
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::ensure_role;
 
@@ -53,12 +54,104 @@ where
     Ok((crawler, products))
 }
 
+/// Starts crawling for the specified crawler.
+///
+/// Validates the `parser` role, ensures the crawler belongs to the user's hub
+/// and sends a ZMQ message to trigger crawling. Returns `Ok(true)` if the
+/// message was sent successfully, `Ok(false)` if sending failed, or an error if
+/// the crawler was not found or a repository error occurred.
+pub fn crawl_crawler<R, F>(
+    repo: &R,
+    user: &AuthenticatedUser,
+    crawler_id: i32,
+    send: F,
+) -> ServiceResult<bool>
+where
+    R: CrawlerReader,
+    F: Fn(&ZMQMessage) -> Result<(), ()>,
+{
+    if ensure_role(user, "parser", None).is_err() {
+        return Err(ServiceError::Unauthorized);
+    }
+
+    let crawler = match repo.get_crawler_by_id(crawler_id) {
+        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
+        Ok(_) => return Err(ServiceError::NotFound),
+        Err(e) => {
+            error!("Failed to get crawler by id: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let message = ZMQMessage::Crawler(CrawlerSelector::Selector(crawler.selector));
+    match send(&message) {
+        Ok(_) => Ok(true),
+        Err(_) => {
+            error!("Failed to send ZMQ message");
+            Ok(false)
+        }
+    }
+}
+
+/// Updates prices for all products of the specified crawler.
+///
+/// Performs the same validations as [`crawl_crawler`] but also fetches all
+/// product URLs for the crawler before sending a ZMQ message. Returns
+/// `Ok(true)` if the message was sent successfully, `Ok(false)` if sending
+/// failed, or an error if the crawler was not found or a repository error
+/// occurred.
+pub fn update_crawler_prices<R, F>(
+    repo: &R,
+    user: &AuthenticatedUser,
+    crawler_id: i32,
+    send: F,
+) -> ServiceResult<bool>
+where
+    R: CrawlerReader + ProductReader,
+    F: Fn(&ZMQMessage) -> Result<(), ()>,
+{
+    if ensure_role(user, "parser", None).is_err() {
+        return Err(ServiceError::Unauthorized);
+    }
+
+    let crawler = match repo.get_crawler_by_id(crawler_id) {
+        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
+        Ok(_) => return Err(ServiceError::NotFound),
+        Err(e) => {
+            error!("Failed to get crawler by id: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let products = match repo.list_products(ProductListQuery::default().crawler(crawler_id)) {
+        Ok((_total, products)) => products,
+        Err(e) => {
+            error!("Failed to get products: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let message = ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((
+        crawler.selector,
+        products.into_iter().map(|p| p.url).collect(),
+    )));
+
+    match send(&message) {
+        Ok(_) => Ok(true),
+        Err(_) => {
+            error!("Failed to send ZMQ message");
+            Ok(false)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
     use chrono::NaiveDateTime;
     use pushkind_common::models::auth::AuthenticatedUser;
+    use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQMessage};
     use serde_json::Value;
 
     fn sample_user() -> AuthenticatedUser {
@@ -114,5 +207,45 @@ mod tests {
         let value: Value = serde_json::to_value(&paginated).unwrap();
         assert_eq!(value["page"], 1);
         assert_eq!(value["items"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn crawl_crawler_sends_message() {
+        let repo = TestRepository::new(vec![sample_crawler()], vec![], vec![]);
+        let user = sample_user();
+
+        let result = crawl_crawler(&repo, &user, 1, |msg| {
+            match msg {
+                ZMQMessage::Crawler(CrawlerSelector::Selector(sel)) => {
+                    assert_eq!(sel, "body");
+                }
+                _ => panic!("unexpected message"),
+            }
+            Ok(())
+        })
+        .unwrap();
+
+        assert!(result);
+    }
+
+    #[test]
+    fn update_crawler_prices_sends_message() {
+        let repo = TestRepository::new(vec![sample_crawler()], vec![sample_product()], vec![]);
+        let user = sample_user();
+
+        let result = update_crawler_prices(&repo, &user, 1, |msg| {
+            match msg {
+                ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((sel, urls))) => {
+                    assert_eq!(sel, "body");
+                    assert_eq!(urls.len(), 1);
+                    assert_eq!(urls[0], "http://example.com");
+                }
+                _ => panic!("unexpected message"),
+            }
+            Ok(())
+        })
+        .unwrap();
+
+        assert!(result);
     }
 }
