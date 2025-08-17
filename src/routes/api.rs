@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, Responder, get, web};
 use pushkind_common::models::auth::AuthenticatedUser;
 
 use crate::repository::DieselRepository;
-use crate::services::api::{api_v1_products as api_v1_products_service, ApiV1ProductsQueryParams};
+use crate::services::api::{ApiV1ProductsQueryParams, api_v1_products as api_v1_products_service};
 use crate::services::errors::ServiceError;
 
 #[get("/v1/products")]

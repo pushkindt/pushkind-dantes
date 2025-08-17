@@ -50,17 +50,8 @@
 
     <div class="container bg-white border rounded my-2">
         <div id="items">
-            {% include 'components/product_header.html' %}
-
-            {% for product in products.items %}
-                    {% include 'components/product.html' %}
-
-            {% else %}
-                <div class="alert alert-danger" role="alert">
-                    Нет товаров для отображения.
-                </div>
-            {% endfor %}
-            </div>
+            {% include 'components/products.html' %}
+        </div>
         {% set items = products %}
         {% include 'components/pagination.html' %}
     </div>
@@ -69,7 +60,7 @@
 {% block scripts %}
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            enableSorting("#items", ".product");
+            enableSorting("#items", ".row.fw-bold", ".product");
         });
     </script>
 {% endblock %}

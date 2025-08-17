@@ -3,43 +3,44 @@
 {% block content %}
     {% include 'components/navigation.html' %}
 
-{% if crawlers %}
-    <div class="container bg-white border rounded my-2" id="items">
-        <div class="row fw-bold">
-            <div class="col overflow-hidden">
-                Название
-            </div>
-            <div class="col overflow-hidden">
-                Дата последнего сканирования
-            </div>
-            <div class="col overflow-hidden">
-                Товаров
-            </div>
-        </div>
-        {% for crawler in crawlers %}
-            <div class="row my-1 py-1 border-top crawler selectable" data-id="{{crawler.id}}" data-kind="crawler">
-                <div class="col overflow-hidden">
-                   <a href="{{crawler.url}}">{{crawler.name}}</a>
-                </div>
-                <div class="col overflow-hidden">
-                    {{crawler.updated_at | date(format="%Y-%m-%d %H:%M")}}
-                </div>
-                <div class="col overflow-hidden">
-                    {{crawler.num_products}}
-                </div>
-            </div>
-        {% endfor %}
+    <div class="container bg-white border rounded my-2">
+        <table class="table table-hover table-sm align-middle">
+            <caption class="text-muted">парсеры</caption>
+            <thead>
+                <tr>
+                    <th scope="col" data-column="name">Название</th>
+                    <th scope="col" data-column="date" class="text-nowrap">Дата сканирования</th>
+                    <th scope="col" data-column="num" class="text-end text-nowrap">Товаров</th>
+                    <th scope="col" class="text-end">Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                {% for crawler in crawlers %}
+
+                    <tr class="selectable" role="button" data-id="{{crawler.id}}" data-kind="crawler">
+                        <td><a href="{{crawler.url}}">{{crawler.name}}</a></td>
+                        <td>
+                            <time datetime="2025-08-07T19:07:00Z" title="{{crawler.updated_at | date(format="%Y-%m-%d %H:%M")}}">
+                            {{crawler.updated_at | date(format="%d %b, %H:%M")}}
+                            </time>
+                        </td>
+                        <td class="text-end">{{crawler.num_products}}</td>
+                        <td class="text-end">
+                            {% if crawler.processing %}
+                                <span class="badge bg-info">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Скан…
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
-{% else %}
-    <div class="container">
-        <div class="row">
-            <div class="col">
-                <div class="alert alert-danger" role="alert">
-                    Ни один веб-парсер не зарегистрирован.
-                </div>
-            </div>
-        </div>
-    </div>
-{% endif %}
 
 {% endblock %}

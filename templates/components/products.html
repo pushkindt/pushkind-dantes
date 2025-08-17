@@ -1,0 +1,83 @@
+<div class="row fw-bold">
+    <div class="col overflow-hidden" data-column="name">
+        Название ▲▼
+    </div>
+    <div class="col overflow-hidden" data-column="category">
+        Категория ▲▼
+    </div>
+    <div class="col overflow-hidden" data-column="price">
+        Цена {{constants::currency()}} / ед ▲▼
+    </div>
+    <div class="col overflow-hidden">
+        Описание
+    </div>
+</div>
+{% if show_distances %}
+    <div class="row">
+        <div class="col">
+            <form method="POST" action="/benchmark/associate">
+                <div class="row">
+                    <div class="col">
+                        <select class="form-control my-1 product-select" name="product_id" placeholder="Добавить товар" required data-crawler="{{crawler.id}}">
+                        </select>
+                        <input type="hidden" name="benchmark_id" value="{{benchmark.id}}" required>
+                        <input type="hidden" name="crawler_id" value="{{crawler.id}}" required>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary my-1" type="submit"><i class="bi bi-plus"></i></button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}
+{% for product in products.items %}
+    <div class="row my-1 py-1 border-top product">
+        <div class="col overflow-hidden">
+            {% if product.url %}
+                <a href="{{product.url}}">{{product.name}}</a>
+            {% else %}
+                {{product.name}}
+            {% endif %}
+            <div>
+                {{product.sku}}
+            </div>
+            {% if show_distances %}
+                <form method="POST" action="/benchmark/unassociate">
+                    {{distances[product.id] | round(method="ceil", precision=2)}}
+                    <input type="hidden" value="{{benchmark.id}}" name="benchmark_id" required>
+                    <input type="hidden" value="{{product.id}}" name="product_id" required>
+                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить?')">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+        <div class="col overflow-hidden">
+            {{product.category}}
+        </div>
+        <div class="col overflow-hidden">
+            <div>
+                <small class="text-secondary">Обновлено: {{product.updated_at | date(format="%Y-%m-%d %H:%M")}}</small>
+            </div>
+            <div>
+                {{product.price}}{{constants::currency()}} / {{product.amount}} {{product.units}}
+            </div>
+            {% if show_distances %}
+                {% set price_diff = product.price - benchmark.price %}
+                {% if price_diff > 0 %}
+                    <div>
+                        <span class="text-success">+{{ product.price - benchmark.price }}</span>
+                    </div>
+                {% elif price_diff < 0 %}
+                    <div>
+                        <span class="text-danger">{{ product.price - benchmark.price }}</span>
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        <div class="col overflow-hidden text-truncate toggle-text-truncate">
+            {{product.description}}
+        </div>
+    </div>
+{% endfor %}

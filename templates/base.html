@@ -116,11 +116,11 @@
                 }
             };
 
-            function enableSorting(itemContainerSelector, itemSelector) {
+            function enableSorting(itemContainerSelector, headerSelector, itemSelector) {
                 const containers = document.querySelectorAll(itemContainerSelector);
 
                 containers.forEach(container => {
-                    const header = container.querySelector(".row.fw-bold");
+                    const header = container.querySelector(headerSelector);
                     const productRows = Array.from(container.querySelectorAll(itemSelector));
 
                     let currentSort = { column: "name", asc: true };

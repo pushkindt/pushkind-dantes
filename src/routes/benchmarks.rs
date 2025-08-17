@@ -9,10 +9,10 @@ use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::models::zmq::dantes::CrawlerSelector;
 use pushkind_common::models::zmq::dantes::ZMQMessage;
+use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::{base_context, render_template};
 use pushkind_common::routes::{ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
-use serde::Deserialize;
 use tera::Tera;
 use validator::Validate;
 
@@ -25,22 +25,15 @@ use crate::repository::{DieselRepository, ProductListQuery};
 use crate::services::benchmarks::show_benchmarks as show_benchmarks_service;
 use crate::services::errors::ServiceError;
 
-#[derive(Deserialize)]
-struct BenchmarkQueryParams {
-    page: Option<usize>,
-}
-
 #[get("/benchmarks")]
 pub async fn show_benchmarks(
-    params: web::Query<BenchmarkQueryParams>,
     user: AuthenticatedUser,
     flash_messages: IncomingFlashMessages,
     repo: web::Data<DieselRepository>,
     server_config: web::Data<CommonServerConfig>,
     tera: web::Data<Tera>,
 ) -> impl Responder {
-    let page = params.page.unwrap_or(1);
-    match show_benchmarks_service(repo.get_ref(), &user, page) {
+    match show_benchmarks_service(repo.get_ref(), &user) {
         Ok(benchmarks) => {
             let mut context = base_context(
                 &flash_messages,
@@ -103,15 +96,18 @@ pub async fn show_benchmark(
         }
     };
 
-    let mut products: Vec<(Crawler, Vec<Product>)> = vec![];
+    let mut products: Vec<(Crawler, Paginated<Product>)> = vec![];
 
     for crawler in crawlers {
         let crawler_products = match repo.list_products(
             ProductListQuery::default()
                 .benchmark(benchmark_id)
-                .crawler(crawler.id),
+                .crawler(crawler.id)
+                .paginate(1, DEFAULT_ITEMS_PER_PAGE),
         ) {
-            Ok((_total, products)) => products,
+            Ok((total, products)) => {
+                Paginated::new(products, 1, total.div_ceil(DEFAULT_ITEMS_PER_PAGE))
+            }
             Err(e) => {
                 log::error!("Failed to list products: {e}");
                 return HttpResponse::InternalServerError().finish();
@@ -182,11 +178,11 @@ pub async fn match_benchmark(
         Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
-            return redirect(&format!("/benchmark/{benchmark_id}"));
+            return redirect("/benchmarks");
         }
         _ => {
             FlashMessage::error("Бенчмарк не существует").send();
-            return redirect(&format!("/benchmark/{benchmark_id}"));
+            return redirect("/benchmarks");
         }
     };
 
@@ -201,7 +197,7 @@ pub async fn match_benchmark(
         }
     }
 
-    redirect(&format!("/benchmark/{benchmark_id}"))
+    redirect("/benchmarks")
 }
 
 #[post("/benchmarks/upload")]
@@ -253,11 +249,11 @@ pub async fn update_benchmark_prices(
         Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
         Err(e) => {
             log::error!("Failed to get benchmark: {e}");
-            return redirect(&format!("/benchmark/{benchmark_id}"));
+            return redirect("/benchmarks");
         }
         _ => {
             FlashMessage::error("Бенчмарк не существует").send();
-            return redirect(&format!("/benchmark/{benchmark_id}"));
+            return redirect("/benchmarks");
         }
     };
 
@@ -306,7 +302,7 @@ pub async fn update_benchmark_prices(
         }
     }
 
-    redirect(&format!("/benchmark/{benchmark_id}"))
+    redirect("/benchmarks")
 }
 
 #[post("/benchmark/unassociate")]
@@ -330,7 +326,7 @@ pub async fn delete_benchmark_product(
         }
         _ => {
             FlashMessage::error("Бенчмарк не существует").send();
-            return redirect(&format!("/benchmark/{benchmark_id}"));
+            return redirect("/benchmarks");
         }
     };
 
@@ -338,7 +334,7 @@ pub async fn delete_benchmark_product(
         Ok(Some(product)) => product,
         Ok(None) => {
             FlashMessage::error("Товар не существует.").send();
-            return redirect(&format!("/benchmark/{benchmark_id}"));
+            return redirect("/benchmarks");
         }
         Err(e) => {
             log::error!("Failed to get product: {e}");
@@ -354,7 +350,7 @@ pub async fn delete_benchmark_product(
         }
         _ => {
             FlashMessage::error("Парсер не существует").send();
-            return redirect(&format!("/benchmark/{benchmark_id}"));
+            return redirect("/benchmarks");
         }
     };
 
@@ -365,7 +361,7 @@ pub async fn delete_benchmark_product(
         FlashMessage::success("Мэтчинг удален.").send();
     }
 
-    redirect(&format!("/benchmark/{benchmark_id}"))
+    redirect("/benchmarks")
 }
 
 #[post("/benchmark/associate")]
@@ -389,7 +385,7 @@ pub async fn create_benchmark_product(
         }
         _ => {
             FlashMessage::error("Бенчмарк не существует").send();
-            return redirect(&format!("/benchmark/{benchmark_id}"));
+            return redirect("/benchmarks");
         }
     };
 
@@ -397,7 +393,7 @@ pub async fn create_benchmark_product(
         Ok(Some(product)) => product,
         Ok(None) => {
             FlashMessage::error("Товар не существует").send();
-            return redirect(&format!("/benchmark/{benchmark_id}"));
+            return redirect("/benchmarks");
         }
         Err(e) => {
             log::error!("Failed to get product: {e}");
@@ -413,7 +409,7 @@ pub async fn create_benchmark_product(
         }
         _ => {
             FlashMessage::error("Парсер не существует").send();
-            return redirect(&format!("/benchmark/{benchmark_id}"));
+            return redirect("/benchmarks");
         }
     };
 
@@ -424,5 +420,5 @@ pub async fn create_benchmark_product(
         FlashMessage::success("Мэтчинг добавлен.").send();
     }
 
-    redirect(&format!("/benchmark/{benchmark_id}"))
+    redirect("/benchmarks")
 }

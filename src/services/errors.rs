@@ -16,4 +16,3 @@ pub enum ServiceError {
 
 /// Convenient alias for results returned from service functions.
 pub type ServiceResult<T> = Result<T, ServiceError>;
-

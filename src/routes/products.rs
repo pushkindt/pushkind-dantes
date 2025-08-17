@@ -90,7 +90,7 @@ pub async fn crawl_crawler(
         }
     }
 
-    redirect(&format!("/crawler/{crawler_id}"))
+    redirect("/")
 }
 
 #[post("/crawler/{crawler_id}/update")]
@@ -141,5 +141,5 @@ pub async fn update_crawler_prices(
         }
     }
 
-    redirect(&format!("/crawler/{crawler_id}"))
+    redirect("/")
 }
