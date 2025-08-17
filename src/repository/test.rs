@@ -70,6 +70,7 @@ impl TestRepository {
             updated_at: b.updated_at,
             embedding: b.embedding.clone(),
             processing: b.processing,
+            num_products: b.num_products,
         }
     }
 }

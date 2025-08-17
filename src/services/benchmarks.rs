@@ -35,7 +35,6 @@ mod tests {
     use crate::repository::test::TestRepository;
     use chrono::NaiveDateTime;
     use pushkind_common::domain::benchmark::Benchmark;
-    use serde_json::Value;
 
     fn sample_user() -> AuthenticatedUser {
         AuthenticatedUser {
@@ -63,6 +62,7 @@ mod tests {
             updated_at: NaiveDateTime::from_timestamp(0, 0),
             embedding: None,
             processing: false,
+            num_products: 0,
         }
     }
 
@@ -71,7 +71,7 @@ mod tests {
         let repo = TestRepository::new(vec![], vec![], vec![sample_benchmark()]);
         let user = sample_user();
 
-        let benchmarks = show_benchmarks(&repo, &user, 1).unwrap();
+        let benchmarks = show_benchmarks(&repo, &user).unwrap();
         assert_eq!(benchmarks.len(), 1);
     }
 }
