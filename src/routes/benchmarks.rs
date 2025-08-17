@@ -3,13 +3,10 @@ use actix_web::http::header;
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::domain::benchmark::NewBenchmark;
-use pushkind_common::domain::crawler::Crawler;
-use pushkind_common::domain::product::Product;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::models::zmq::dantes::CrawlerSelector;
 use pushkind_common::models::zmq::dantes::ZMQMessage;
-use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::{base_context, render_template};
 use pushkind_common::routes::{ensure_role, redirect};
 use pushkind_common::zmq::send_zmq_message;
@@ -22,7 +19,9 @@ use crate::forms::benchmarks::{
 use crate::models::config::ServerConfig;
 use crate::repository::{BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductReader};
 use crate::repository::{DieselRepository, ProductListQuery};
-use crate::services::benchmarks::show_benchmarks as show_benchmarks_service;
+use crate::services::benchmarks::{
+    show_benchmark as show_benchmark_service, show_benchmarks as show_benchmarks_service,
+};
 use crate::services::errors::ServiceError;
 
 #[get("/benchmarks")]
@@ -63,72 +62,28 @@ pub async fn show_benchmark(
     server_config: web::Data<CommonServerConfig>,
     tera: web::Data<Tera>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
-        return response;
-    }
-
-    let mut context = base_context(
-        &flash_messages,
-        &user,
-        "benchmarks",
-        &server_config.auth_service_url,
-    );
-
-    let benchmark_id = benchmark_id.into_inner();
-
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id) {
-        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
-        Err(e) => {
-            log::error!("Failed to get benchmark: {e}");
-            return HttpResponse::InternalServerError().finish();
+    match show_benchmark_service(repo.get_ref(), &user, benchmark_id.into_inner()) {
+        Ok((benchmark, products, distances)) => {
+            let mut context = base_context(
+                &flash_messages,
+                &user,
+                "benchmarks",
+                &server_config.auth_service_url,
+            );
+            context.insert("benchmark", &benchmark);
+            context.insert("crawler_products", &products);
+            context.insert("distances", &distances);
+            render_template(&tera, "benchmarks/benchmark.html", &context)
         }
-        _ => {
+        Err(ServiceError::Unauthorized) => HttpResponse::Found()
+            .append_header((header::LOCATION, "/na"))
+            .finish(),
+        Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
-            return redirect("/benchmarks");
+            redirect("/benchmarks")
         }
-    };
-
-    let crawlers = match repo.list_crawlers(user.hub_id) {
-        Ok(crawlers) => crawlers,
-        Err(e) => {
-            log::error!("Failed to list crawlers: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-
-    let mut products: Vec<(Crawler, Paginated<Product>)> = vec![];
-
-    for crawler in crawlers {
-        let crawler_products = match repo.list_products(
-            ProductListQuery::default()
-                .benchmark(benchmark_id)
-                .crawler(crawler.id)
-                .paginate(1, DEFAULT_ITEMS_PER_PAGE),
-        ) {
-            Ok((total, products)) => {
-                Paginated::new(products, 1, total.div_ceil(DEFAULT_ITEMS_PER_PAGE))
-            }
-            Err(e) => {
-                log::error!("Failed to list products: {e}");
-                return HttpResponse::InternalServerError().finish();
-            }
-        };
-        products.push((crawler, crawler_products));
+        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
     }
-
-    let distances = match repo.list_distances(benchmark_id) {
-        Ok(distances) => distances,
-        Err(e) => {
-            log::error!("Failed to list distances: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-
-    context.insert("benchmark", &benchmark);
-    context.insert("crawler_products", &products);
-    context.insert("distances", &distances);
-
-    render_template(&tera, "benchmarks/benchmark.html", &context)
 }
 
 #[post("/benchmark/add")]
