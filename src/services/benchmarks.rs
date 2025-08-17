@@ -1,7 +1,6 @@
 use log::error;
 use pushkind_common::domain::benchmark::Benchmark;
 use pushkind_common::models::auth::AuthenticatedUser;
-use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::ensure_role;
 
 use crate::repository::{BenchmarkListQuery, BenchmarkReader};
@@ -13,11 +12,7 @@ use super::errors::{ServiceError, ServiceResult};
 /// Validates the `parser` role and fetches paginated benchmarks for the
 /// user's hub. Repository errors are translated into [`ServiceError`] so the
 /// HTTP route can remain a thin wrapper.
-pub fn show_benchmarks<R>(
-    repo: &R,
-    user: &AuthenticatedUser,
-    page: usize,
-) -> ServiceResult<Paginated<Benchmark>>
+pub fn show_benchmarks<R>(repo: &R, user: &AuthenticatedUser) -> ServiceResult<Vec<Benchmark>>
 where
     R: BenchmarkReader,
 {
@@ -25,14 +20,8 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    match repo.list_benchmarks(
-        BenchmarkListQuery::new(user.hub_id).paginate(page, DEFAULT_ITEMS_PER_PAGE),
-    ) {
-        Ok((total, benchmarks)) => Ok(Paginated::new(
-            benchmarks,
-            page,
-            total.div_ceil(DEFAULT_ITEMS_PER_PAGE),
-        )),
+    match repo.list_benchmarks(BenchmarkListQuery::new(user.hub_id)) {
+        Ok((_total, benchmarks)) => Ok(benchmarks),
         Err(e) => {
             error!("Failed to list benchmarks: {e}");
             Err(ServiceError::Internal)
@@ -82,10 +71,7 @@ mod tests {
         let repo = TestRepository::new(vec![], vec![], vec![sample_benchmark()]);
         let user = sample_user();
 
-        let paginated = show_benchmarks(&repo, &user, 1).unwrap();
-
-        let value: Value = serde_json::to_value(&paginated).unwrap();
-        assert_eq!(value["page"], 1);
-        assert_eq!(value["items"].as_array().unwrap().len(), 1);
+        let benchmarks = show_benchmarks(&repo, &user, 1).unwrap();
+        assert_eq!(benchmarks.len(), 1);
     }
 }

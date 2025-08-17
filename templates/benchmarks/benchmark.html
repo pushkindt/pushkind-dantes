@@ -13,11 +13,8 @@
 {% block content %}
     {% include 'components/navigation.html' %}
 
-    <div class="container bg-white border rounded my-2">
-        <div class="row">
-            <div class="col">
-                <h5>Бенчмарк</h5>
-            </div>
+    <div class="container my-2">
+        <div class="row justify-content-end">
             <div class="col-auto">
                 <div class="dropdown">
                     <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -53,27 +50,55 @@
                 </div>
             </div>
         </div>
-        {% include 'components/product_header.html' %}
+    </div>
 
-        {% set product = benchmark %}
-        {% include 'components/product.html' %}
-
+    <div class="container bg-white border rounded my-2">
+        <h5>Бенчмарк</h5>
+        <div class="row fw-bold">
+            <div class="col overflow-hidden" data-column="name">
+                Название
+            </div>
+            <div class="col overflow-hidden" data-column="category">
+                Категория
+            </div>
+            <div class="col overflow-hidden" data-column="price">
+                Цена {{constants::currency()}} / ед
+            </div>
+            <div class="col overflow-hidden">
+                Описание
+            </div>
+        </div>
+        <div class="row my-1 py-1 border-top">
+            <div class="col overflow-hidden">
+                <div>
+                    {{benchmark.name}}
+                </div>
+                <div>
+                    {{benchmark.sku}}
+                </div>
+            </div>
+            <div class="col overflow-hidden">
+                {{benchmark.category}}
+            </div>
+            <div class="col overflow-hidden">
+                <div>
+                    {{benchmark.price}}{{constants::currency()}} / {{benchmark.amount}} {{benchmark.units}}
+                </div>
+            </div>
+            <div class="col overflow-hidden text-truncate toggle-text-truncate">
+                {{benchmark.description}}
+            </div>
+        </div>
     </div>
 
     {% for crawler_products in crawler_products %}
         {% set crawler = crawler_products.0 %}
-	    {% set products = crawler_products.1 %}
+        {% set products = crawler_products.1 %}
+        {% set show_distances = true %}
 
         <div class="container bg-white border rounded my-2 items">
             <h5>Товары {{crawler.name}}</h5>
-            {% set show_distances = true %}
-            {% include 'components/product_search.html' %}
-            {% include 'components/product_header.html' %}
-
-            {% for product in products %}
-                {% include 'components/product.html' %}
-            {% endfor %}
-
+            {% include 'components/products.html' %}
         </div>
 
     {% endfor %}
@@ -91,7 +116,7 @@
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
-            enableSorting(".items", ".product");
+            enableSorting(".items", ".row.fw-bold" ".product");
             let product_selects = $(".product-select");
             $(".product-select").each(function() {
                 const crawler_id = $(this).data("crawler");

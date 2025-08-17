@@ -36,28 +36,44 @@
                 </button>
             </div>
         </div>
-        <div id="items">
-            {% include 'components/product_header.html' %}
-            {% set product_kind = "benchmark" %}
-            {% for product in benchmarks.items %}
-                {% include 'components/product.html' %}
-            {% else %}
-                <div class="alert alert-danger" role="alert">
-                    Нет товаров для отображения.
-                </div>
-            {% endfor %}
-        </div>
-        {% set items = benchmarks %}
-        {% include 'components/pagination.html' %}
+        <table class="table table-hover table-sm align-middle">
+            <caption class="text-muted">бенчмарки</caption>
+            <thead>
+                <tr>
+                    <th scope="col" data-column="name">Название</th>
+                    <th scope="col" data-column="date" class="text-nowrap">Дата мэтчинга</th>
+                    <th scope="col" data-column="num" class="text-end text-nowrap">Товаров</th>
+                    <th scope="col" class="text-end">Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                {% for benchmark in benchmarks %}
+
+                    <tr class="selectable" role="button" data-id="{{benchmark.id}}" data-kind="benchmark">
+                        <td>{{benchmark.name}}</td>
+                        <td>
+                            <time datetime="2025-08-07T19:07:00Z" title="{{benchmark.updated_at | date(format="%Y-%m-%d %H:%M")}}">
+                            {{benchmark.updated_at | date(format="%d %b, %H:%M")}}
+                            </time>
+                        </td>
+                        <td class="text-end">{{benchmark.num_products}}</td>
+                        <td class="text-end">
+                            {% if benchmark.processing %}
+                                <span class="badge bg-info">
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Скан…
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 
     {% include 'benchmarks/add_benchmark_modal.html' %}
-{% endblock %}
-
-{% block scripts %}
-    <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            enableSorting("#items", ".product");
-        });
-    </script>
 {% endblock %}
