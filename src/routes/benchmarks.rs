@@ -1,6 +1,6 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::http::header;
-use actix_web::{get, post, web, HttpResponse, Responder};
+use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
@@ -17,8 +17,7 @@ use crate::services::benchmarks::{
     add_benchmark as add_benchmark_service,
     create_benchmark_product as create_benchmark_product_service,
     delete_benchmark_product as delete_benchmark_product_service,
-    match_benchmark as match_benchmark_service,
-    show_benchmark as show_benchmark_service,
+    match_benchmark as match_benchmark_service, show_benchmark as show_benchmark_service,
     show_benchmarks as show_benchmarks_service,
     update_benchmark_prices as update_benchmark_prices_service,
     upload_benchmarks as upload_benchmarks_service,
@@ -94,12 +93,12 @@ pub async fn add_benchmark(
     web::Form(form): web::Form<AddBenchmarkForm>,
 ) -> impl Responder {
     match add_benchmark_service(repo.get_ref(), &user, form) {
-        Ok(true) => FlashMessage::success("Бенчмарк добавлен.".to_string()).send(),
+        Ok(true) => FlashMessage::success("Бенчмарк добавлен.").send(),
         Ok(false) => FlashMessage::error("Ошибка при добавлении бенчмарка").send(),
         Err(ServiceError::Unauthorized) => {
             return HttpResponse::Found()
                 .append_header((header::LOCATION, "/na"))
-                .finish()
+                .finish();
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
@@ -119,18 +118,15 @@ pub async fn match_benchmark(
     repo: web::Data<DieselRepository>,
     server_config: web::Data<ServerConfig>,
 ) -> impl Responder {
-    match match_benchmark_service(
-        repo.get_ref(),
-        &user,
-        benchmark_id.into_inner(),
-        |msg| send_zmq_message(msg, &server_config.zmq_address).map_err(|_| ()),
-    ) {
+    match match_benchmark_service(repo.get_ref(), &user, benchmark_id.into_inner(), |msg| {
+        send_zmq_message(msg, &server_config.zmq_address).map_err(|_| ())
+    }) {
         Ok(true) => FlashMessage::success("Обработка запущена").send(),
         Ok(false) => FlashMessage::error("Не удалось начать обработку.").send(),
         Err(ServiceError::Unauthorized) => {
             return HttpResponse::Found()
                 .append_header((header::LOCATION, "/na"))
-                .finish()
+                .finish();
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
@@ -150,12 +146,12 @@ pub async fn upload_benchmarks(
     MultipartForm(mut form): MultipartForm<UploadBenchmarksForm>,
 ) -> impl Responder {
     match upload_benchmarks_service(repo.get_ref(), &user, &mut form) {
-        Ok(true) => FlashMessage::success("Бенчмарки добавлены.".to_string()).send(),
+        Ok(true) => FlashMessage::success("Бенчмарки добавлены.").send(),
         Ok(false) => FlashMessage::error("Ошибка при добавлении бенчмарков").send(),
         Err(ServiceError::Unauthorized) => {
             return HttpResponse::Found()
                 .append_header((header::LOCATION, "/na"))
-                .finish()
+                .finish();
         }
         Err(ServiceError::Internal) => {
             return HttpResponse::InternalServerError().finish();
@@ -175,26 +171,16 @@ pub async fn update_benchmark_prices(
     repo: web::Data<DieselRepository>,
     server_config: web::Data<ServerConfig>,
 ) -> impl Responder {
-    match update_benchmark_prices_service(
-        repo.get_ref(),
-        &user,
-        benchmark_id.into_inner(),
-        |msg| send_zmq_message(msg, &server_config.zmq_address).map_err(|_| ()),
-    ) {
+    match update_benchmark_prices_service(repo.get_ref(), &user, benchmark_id.into_inner(), |msg| {
+        send_zmq_message(msg, &server_config.zmq_address).map_err(|_| ())
+    }) {
         Ok(results) => {
             for (selector, sent) in results {
                 if sent {
-                    FlashMessage::success(format!(
-                        "Обработка запущена для {}",
-                        selector
-                    ))
-                    .send();
+                    FlashMessage::success(format!("Обработка запущена для {selector}")).send();
                 } else {
-                    FlashMessage::error(format!(
-                        "Не удалось начать обработку для {}",
-                        selector
-                    ))
-                    .send();
+                    FlashMessage::error(format!("Не удалось начать обработку для {selector}"))
+                        .send();
                 }
             }
         }

@@ -50,7 +50,11 @@ pub fn show_benchmark<R>(
     repo: &R,
     user: &AuthenticatedUser,
     benchmark_id: i32,
-) -> ServiceResult<(Benchmark, Vec<(Crawler, Paginated<Product>)>, HashMap<i32, f32>)>
+) -> ServiceResult<(
+    Benchmark,
+    Vec<(Crawler, Paginated<Product>)>,
+    HashMap<i32, f32>,
+)>
 where
     R: BenchmarkReader + CrawlerReader + ProductReader,
 {
@@ -83,9 +87,7 @@ where
                 .crawler(crawler.id)
                 .paginate(1, DEFAULT_ITEMS_PER_PAGE),
         ) {
-            Ok((total, items)) => {
-                Paginated::new(items, 1, total.div_ceil(DEFAULT_ITEMS_PER_PAGE))
-            }
+            Ok((total, items)) => Paginated::new(items, 1, total.div_ceil(DEFAULT_ITEMS_PER_PAGE)),
             Err(e) => {
                 error!("Failed to list products: {e}");
                 return Err(ServiceError::Internal);
@@ -246,7 +248,9 @@ where
     let mut results = Vec::new();
     for crawler in crawlers {
         let products = match repo.list_products(
-            ProductListQuery::default().benchmark(benchmark.id).crawler(crawler.id),
+            ProductListQuery::default()
+                .benchmark(benchmark.id)
+                .crawler(crawler.id),
         ) {
             Ok((_total, products)) => products,
             Err(e) => {
@@ -260,8 +264,10 @@ where
         }
 
         let urls = products.into_iter().map(|p| p.url).collect();
-        let message =
-            ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((crawler.selector.clone(), urls)));
+        let message = ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((
+            crawler.selector.clone(),
+            urls,
+        )));
         let sent = send(&message).is_ok();
         if !sent {
             error!("Failed to send ZMQ message");
@@ -381,8 +387,8 @@ mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
     use chrono::NaiveDateTime;
-    use serde_json::Value;
     use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQMessage};
+    use serde_json::Value;
 
     fn sample_user() -> AuthenticatedUser {
         AuthenticatedUser {
@@ -463,8 +469,7 @@ mod tests {
         );
         let user = sample_user();
 
-        let (benchmark, crawler_products, distances) =
-            show_benchmark(&repo, &user, 1).unwrap();
+        let (benchmark, crawler_products, distances) = show_benchmark(&repo, &user, 1).unwrap();
 
         assert_eq!(benchmark.id, 1);
         assert_eq!(crawler_products.len(), 1);
@@ -481,14 +486,12 @@ mod tests {
         let repo = TestRepository::new(vec![], vec![], vec![sample_benchmark()]);
         let user = sample_user();
 
-        let result = match_benchmark(&repo, &user, 1, |msg| {
-            match msg {
-                ZMQMessage::Benchmark(id) => {
-                    assert_eq!(*id, 1);
-                    Ok(())
-                }
-                _ => Err(()),
+        let result = match_benchmark(&repo, &user, 1, |msg| match msg {
+            ZMQMessage::Benchmark(id) => {
+                assert_eq!(*id, 1);
+                Ok(())
             }
+            _ => Err(()),
         })
         .unwrap();
 
@@ -504,16 +507,14 @@ mod tests {
         );
         let user = sample_user();
 
-        let result = update_benchmark_prices(&repo, &user, 1, |msg| {
-            match msg {
-                ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((sel, urls))) => {
-                    assert_eq!(sel, "body");
-                    assert_eq!(urls.len(), 1);
-                    assert_eq!(urls[0], "http://example.com");
-                    Ok(())
-                }
-                _ => Err(()),
+        let result = update_benchmark_prices(&repo, &user, 1, |msg| match msg {
+            ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((sel, urls))) => {
+                assert_eq!(sel, "body");
+                assert_eq!(urls.len(), 1);
+                assert_eq!(urls[0], "http://example.com");
+                Ok(())
             }
+            _ => Err(()),
         })
         .unwrap();
 
