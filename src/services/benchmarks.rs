@@ -62,9 +62,9 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id) {
-        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
-        Ok(_) => return Err(ServiceError::NotFound),
+    let benchmark = match repo.get_benchmark_by_id(benchmark_id, user.hub_id) {
+        Ok(Some(benchmark)) => benchmark,
+        Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
             error!("Failed to get benchmark: {e}");
             return Err(ServiceError::Internal);
@@ -191,9 +191,9 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id) {
-        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
-        Ok(_) => return Err(ServiceError::NotFound),
+    let benchmark = match repo.get_benchmark_by_id(benchmark_id, user.hub_id) {
+        Ok(Some(benchmark)) => benchmark,
+        Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
             error!("Failed to get benchmark: {e}");
             return Err(ServiceError::Internal);
@@ -228,9 +228,9 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id) {
-        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
-        Ok(_) => return Err(ServiceError::NotFound),
+    let benchmark = match repo.get_benchmark_by_id(benchmark_id, user.hub_id) {
+        Ok(Some(benchmark)) => benchmark,
+        Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
             error!("Failed to get benchmark: {e}");
             return Err(ServiceError::Internal);
@@ -294,9 +294,9 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmark = match repo.get_benchmark_by_id(form.benchmark_id) {
-        Ok(Some(b)) if b.hub_id == user.hub_id => b,
-        Ok(_) => return Err(ServiceError::NotFound),
+    let benchmark = match repo.get_benchmark_by_id(form.benchmark_id, user.hub_id) {
+        Ok(Some(b)) => b,
+        Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
             error!("Failed to get benchmark: {e}");
             return Err(ServiceError::Internal);
@@ -312,9 +312,9 @@ where
         }
     };
 
-    match repo.get_crawler_by_id(product.crawler_id) {
-        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
-        Ok(_) => return Err(ServiceError::NotFound),
+    match repo.get_crawler_by_id(product.crawler_id, user.hub_id) {
+        Ok(Some(crawler)) => crawler,
+        Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
             error!("Failed to get crawler: {e}");
             return Err(ServiceError::Internal);
@@ -346,9 +346,9 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmark = match repo.get_benchmark_by_id(form.benchmark_id) {
-        Ok(Some(b)) if b.hub_id == user.hub_id => b,
-        Ok(_) => return Err(ServiceError::NotFound),
+    let benchmark = match repo.get_benchmark_by_id(form.benchmark_id, user.hub_id) {
+        Ok(Some(b)) => b,
+        Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
             error!("Failed to get benchmark: {e}");
             return Err(ServiceError::Internal);
@@ -364,9 +364,9 @@ where
         }
     };
 
-    match repo.get_crawler_by_id(product.crawler_id) {
-        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
-        Ok(_) => return Err(ServiceError::NotFound),
+    match repo.get_crawler_by_id(product.crawler_id, user.hub_id) {
+        Ok(Some(crawler)) => crawler,
+        Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
             error!("Failed to get crawler: {e}");
             return Err(ServiceError::Internal);

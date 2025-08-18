@@ -8,13 +8,14 @@ use pushkind_common::repository::errors::RepositoryResult;
 use crate::repository::{BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, DieselRepository};
 
 impl BenchmarkReader for DieselRepository {
-    fn get_benchmark_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>> {
+    fn get_benchmark_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Benchmark>> {
         use pushkind_common::schema::dantes::benchmarks;
 
         let mut conn = self.conn()?;
 
         let benchmark = benchmarks::table
             .filter(benchmarks::id.eq(id))
+            .filter(benchmarks::hub_id.eq(hub_id))
             .first::<DbBenchmark>(&mut conn)
             .optional()?;
 

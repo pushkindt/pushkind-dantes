@@ -28,9 +28,9 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let crawler = match repo.get_crawler_by_id(crawler_id) {
-        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
-        Ok(_) => return Err(ServiceError::NotFound),
+    let crawler = match repo.get_crawler_by_id(crawler_id, user.hub_id) {
+        Ok(Some(crawler)) => crawler,
+        Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
             error!("Failed to get crawler: {e}");
             return Err(ServiceError::Internal);
@@ -74,9 +74,9 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let crawler = match repo.get_crawler_by_id(crawler_id) {
-        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
-        Ok(_) => return Err(ServiceError::NotFound),
+    let crawler = match repo.get_crawler_by_id(crawler_id, user.hub_id) {
+        Ok(Some(crawler)) => crawler,
+        Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
             error!("Failed to get crawler by id: {e}");
             return Err(ServiceError::Internal);
@@ -114,9 +114,9 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let crawler = match repo.get_crawler_by_id(crawler_id) {
-        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
-        Ok(_) => return Err(ServiceError::NotFound),
+    let crawler = match repo.get_crawler_by_id(crawler_id, user.hub_id) {
+        Ok(Some(crawler)) => crawler,
+        Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
             error!("Failed to get crawler by id: {e}");
             return Err(ServiceError::Internal);

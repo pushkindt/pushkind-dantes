@@ -99,7 +99,7 @@ pub trait CrawlerReader {
     /// List all crawlers for a specific hub.
     fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>>;
     /// Retrieve a crawler by its identifier.
-    fn get_crawler_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>>;
+    fn get_crawler_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Crawler>>;
 }
 
 pub trait CrawlerWriter {}
@@ -126,7 +126,7 @@ pub trait BenchmarkReader {
         query: BenchmarkListQuery,
     ) -> RepositoryResult<(usize, Vec<Benchmark>)>;
     /// Retrieve a benchmark by its identifier.
-    fn get_benchmark_by_id(&self, id: i32) -> RepositoryResult<Option<Benchmark>>;
+    fn get_benchmark_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Benchmark>>;
 }
 
 /// Write operations for benchmark entities and their associations.
