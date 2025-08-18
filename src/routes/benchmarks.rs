@@ -1,26 +1,25 @@
 use actix_multipart::form::MultipartForm;
-use actix_web::http::header;
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
-use pushkind_common::domain::benchmark::NewBenchmark;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
-use pushkind_common::models::zmq::dantes::CrawlerSelector;
-use pushkind_common::models::zmq::dantes::ZMQMessage;
-use pushkind_common::routes::{base_context, render_template};
-use pushkind_common::routes::{ensure_role, redirect};
+use pushkind_common::routes::{base_context, redirect, render_template};
 use pushkind_common::zmq::send_zmq_message;
 use tera::Tera;
-use validator::Validate;
 
 use crate::forms::benchmarks::{
     AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
 };
 use crate::models::config::ServerConfig;
-use crate::repository::{BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductReader};
-use crate::repository::{DieselRepository, ProductListQuery};
+use crate::repository::DieselRepository;
 use crate::services::benchmarks::{
-    show_benchmark as show_benchmark_service, show_benchmarks as show_benchmarks_service,
+    add_benchmark as add_benchmark_service,
+    create_benchmark_product as create_benchmark_product_service,
+    delete_benchmark_product as delete_benchmark_product_service,
+    match_benchmark as match_benchmark_service, show_benchmark as show_benchmark_service,
+    show_benchmarks as show_benchmarks_service,
+    update_benchmark_prices as update_benchmark_prices_service,
+    upload_benchmarks as upload_benchmarks_service,
 };
 use crate::services::errors::ServiceError;
 
@@ -45,9 +44,7 @@ pub async fn show_benchmarks(
 
             render_template(&tera, "benchmarks/index.html", &context)
         }
-        Err(ServiceError::Unauthorized) => HttpResponse::Found()
-            .append_header((header::LOCATION, "/na"))
-            .finish(),
+        Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
         Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
     }
@@ -75,9 +72,7 @@ pub async fn show_benchmark(
             context.insert("distances", &distances);
             render_template(&tera, "benchmarks/benchmark.html", &context)
         }
-        Err(ServiceError::Unauthorized) => HttpResponse::Found()
-            .append_header((header::LOCATION, "/na"))
-            .finish(),
+        Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
             redirect("/benchmarks")
@@ -92,27 +87,20 @@ pub async fn add_benchmark(
     repo: web::Data<DieselRepository>,
     web::Form(form): web::Form<AddBenchmarkForm>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
-        return response;
-    };
-
-    if let Err(e) = form.validate() {
-        log::error!("Failed to validate form: {e}");
-        FlashMessage::error("Ошибка валидации формы").send();
-        return redirect("/benchmarks");
-    }
-
-    let new_benchmark: NewBenchmark = form.into_new_benchmark(user.hub_id);
-
-    match repo.create_benchmark(&[new_benchmark]) {
-        Ok(_) => {
-            FlashMessage::success("Бенчмарк добавлен.".to_string()).send();
+    match add_benchmark_service(repo.get_ref(), &user, form) {
+        Ok(true) => FlashMessage::success("Бенчмарк добавлен.").send(),
+        Ok(false) => FlashMessage::error("Ошибка при добавлении бенчмарка").send(),
+        Err(ServiceError::Unauthorized) => {
+            return redirect("/na");
         }
-        Err(err) => {
-            log::error!("Failed to add a benchmark: {err}");
-            FlashMessage::error("Ошибка при добавлении бенчмарка").send();
+        Err(ServiceError::NotFound) => {
+            FlashMessage::error("Бенчмарк не существует").send();
+        }
+        Err(ServiceError::Internal) => {
+            return HttpResponse::InternalServerError().finish();
         }
     }
+
     redirect("/benchmarks")
 }
 
@@ -123,32 +111,19 @@ pub async fn match_benchmark(
     repo: web::Data<DieselRepository>,
     server_config: web::Data<ServerConfig>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
-        return response;
-    };
-
-    let benchmark_id = benchmark_id.into_inner();
-
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id) {
-        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
-        Err(e) => {
-            log::error!("Failed to get benchmark: {e}");
-            return redirect("/benchmarks");
+    match match_benchmark_service(repo.get_ref(), &user, benchmark_id.into_inner(), |msg| {
+        send_zmq_message(msg, &server_config.zmq_address).map_err(|_| ())
+    }) {
+        Ok(true) => FlashMessage::success("Обработка запущена").send(),
+        Ok(false) => FlashMessage::error("Не удалось начать обработку.").send(),
+        Err(ServiceError::Unauthorized) => {
+            return redirect("/na");
         }
-        _ => {
+        Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
-            return redirect("/benchmarks");
         }
-    };
-
-    let message = ZMQMessage::Benchmark(benchmark.id);
-    match send_zmq_message(&message, &server_config.zmq_address) {
-        Ok(_) => {
-            FlashMessage::success("Обработка запущена").send();
-        }
-        Err(e) => {
-            log::error!("Failed to send ZMQ message: {e}");
-            FlashMessage::error("Не удалось начать обработку.").send();
+        Err(ServiceError::Internal) => {
+            return HttpResponse::InternalServerError().finish();
         }
     }
 
@@ -161,26 +136,17 @@ pub async fn upload_benchmarks(
     repo: web::Data<DieselRepository>,
     MultipartForm(mut form): MultipartForm<UploadBenchmarksForm>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
-        return response;
-    };
-
-    let benchmarks = match form.parse(user.hub_id) {
-        Ok(benchmarks) => benchmarks,
-        Err(err) => {
-            log::error!("Failed to parse benchmarks: {err}");
-            FlashMessage::error("Ошибка при парсинге бенчмарков").send();
-            return redirect("/benchmarks");
+    match upload_benchmarks_service(repo.get_ref(), &user, &mut form) {
+        Ok(true) => FlashMessage::success("Бенчмарки добавлены.").send(),
+        Ok(false) => FlashMessage::error("Ошибка при добавлении бенчмарков").send(),
+        Err(ServiceError::Unauthorized) => {
+            return redirect("/na");
         }
-    };
-
-    match repo.create_benchmark(&benchmarks) {
-        Ok(_) => {
-            FlashMessage::success("Бенчмарки добавлены.".to_string()).send();
+        Err(ServiceError::Internal) => {
+            return HttpResponse::InternalServerError().finish();
         }
-        Err(err) => {
-            log::error!("Failed to add benchmarks: {err}");
-            FlashMessage::error("Ошибка при добавлении бенчмарков").send();
+        Err(ServiceError::NotFound) => {
+            FlashMessage::error("Бенчмарк не существует").send();
         }
     }
 
@@ -194,66 +160,27 @@ pub async fn update_benchmark_prices(
     repo: web::Data<DieselRepository>,
     server_config: web::Data<ServerConfig>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
-        return response;
-    }
-
-    let benchmark_id = benchmark_id.into_inner();
-
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id) {
-        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
-        Err(e) => {
-            log::error!("Failed to get benchmark: {e}");
-            return redirect("/benchmarks");
+    match update_benchmark_prices_service(repo.get_ref(), &user, benchmark_id.into_inner(), |msg| {
+        send_zmq_message(msg, &server_config.zmq_address).map_err(|_| ())
+    }) {
+        Ok(results) => {
+            for (selector, sent) in results {
+                if sent {
+                    FlashMessage::success(format!("Обработка запущена для {selector}")).send();
+                } else {
+                    FlashMessage::error(format!("Не удалось начать обработку для {selector}"))
+                        .send();
+                }
+            }
         }
-        _ => {
+        Err(ServiceError::Unauthorized) => {
+            return redirect("/na");
+        }
+        Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
-            return redirect("/benchmarks");
         }
-    };
-
-    let crawlers = match repo.list_crawlers(user.hub_id) {
-        Ok(crawlers) => crawlers,
-        Err(e) => {
-            log::error!("Failed to list crawlers: {e}");
+        Err(ServiceError::Internal) => {
             return HttpResponse::InternalServerError().finish();
-        }
-    };
-
-    for crawler in crawlers {
-        let crawler_products = match repo.list_products(
-            ProductListQuery::default()
-                .benchmark(benchmark.id)
-                .crawler(crawler.id),
-        ) {
-            Ok((_total, products)) => products,
-            Err(e) => {
-                log::error!("Failed to list products: {e}");
-                return HttpResponse::InternalServerError().finish();
-            }
-        };
-
-        if crawler_products.is_empty() {
-            continue;
-        }
-
-        let message = ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((
-            crawler.selector.clone(),
-            crawler_products.into_iter().map(|p| p.url).collect(),
-        )));
-        match send_zmq_message(&message, &server_config.zmq_address) {
-            Ok(_) => {
-                FlashMessage::success(format!("Обработка запущена для {}", crawler.selector))
-                    .send();
-            }
-            Err(e) => {
-                log::error!("Failed to send ZMQ message: {e}");
-                FlashMessage::error(format!(
-                    "Не удалось начать обработку для {}",
-                    crawler.selector
-                ))
-                .send();
-            }
         }
     }
 
@@ -266,54 +193,18 @@ pub async fn delete_benchmark_product(
     repo: web::Data<DieselRepository>,
     web::Form(form): web::Form<UnassociateForm>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
-        return response;
-    };
-
-    let benchmark_id = form.benchmark_id;
-    let product_id = form.product_id;
-
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id) {
-        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
-        Err(e) => {
-            log::error!("Failed to get benchmark: {e}");
+    match delete_benchmark_product_service(repo.get_ref(), &user, form) {
+        Ok(true) => FlashMessage::success("Мэтчинг удален.").send(),
+        Ok(false) => FlashMessage::error("Ошибка при удалении мэтчинга").send(),
+        Err(ServiceError::Unauthorized) => {
+            return redirect("/na");
+        }
+        Err(ServiceError::NotFound) => {
+            FlashMessage::error("Бенчмарк или товар не существует").send();
+        }
+        Err(ServiceError::Internal) => {
             return HttpResponse::InternalServerError().finish();
         }
-        _ => {
-            FlashMessage::error("Бенчмарк не существует").send();
-            return redirect("/benchmarks");
-        }
-    };
-
-    let product = match repo.get_product_by_id(product_id) {
-        Ok(Some(product)) => product,
-        Ok(None) => {
-            FlashMessage::error("Товар не существует.").send();
-            return redirect("/benchmarks");
-        }
-        Err(e) => {
-            log::error!("Failed to get product: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-
-    let _crawler = match repo.get_crawler_by_id(product.crawler_id) {
-        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
-        Err(e) => {
-            log::error!("Failed to get crawler: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-        _ => {
-            FlashMessage::error("Парсер не существует").send();
-            return redirect("/benchmarks");
-        }
-    };
-
-    if let Err(e) = repo.remove_benchmark_association(benchmark.id, product.id) {
-        log::error!("Failed to delete association: {e}");
-        FlashMessage::error("Ошибка при удалении мэтчинга").send();
-    } else {
-        FlashMessage::success("Мэтчинг удален.").send();
     }
 
     redirect("/benchmarks")
@@ -325,54 +216,18 @@ pub async fn create_benchmark_product(
     repo: web::Data<DieselRepository>,
     web::Form(form): web::Form<AssociateForm>,
 ) -> impl Responder {
-    if let Err(response) = ensure_role(&user, "parser", Some("/na")) {
-        return response;
-    };
-
-    let benchmark_id = form.benchmark_id;
-    let product_id = form.product_id;
-
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id) {
-        Ok(Some(benchmark)) if benchmark.hub_id == user.hub_id => benchmark,
-        Err(e) => {
-            log::error!("Failed to get benchmark: {e}");
+    match create_benchmark_product_service(repo.get_ref(), &user, form) {
+        Ok(true) => FlashMessage::success("Мэтчинг добавлен.").send(),
+        Ok(false) => FlashMessage::error("Ошибка при добавлении мэтчинга").send(),
+        Err(ServiceError::Unauthorized) => {
+            return redirect("/na");
+        }
+        Err(ServiceError::NotFound) => {
+            FlashMessage::error("Бенчмарк или товар не существует").send();
+        }
+        Err(ServiceError::Internal) => {
             return HttpResponse::InternalServerError().finish();
         }
-        _ => {
-            FlashMessage::error("Бенчмарк не существует").send();
-            return redirect("/benchmarks");
-        }
-    };
-
-    let product = match repo.get_product_by_id(product_id) {
-        Ok(Some(product)) => product,
-        Ok(None) => {
-            FlashMessage::error("Товар не существует").send();
-            return redirect("/benchmarks");
-        }
-        Err(e) => {
-            log::error!("Failed to get product: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-
-    let _crawler = match repo.get_crawler_by_id(product.crawler_id) {
-        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
-        Err(e) => {
-            log::error!("Failed to get crawler: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-        _ => {
-            FlashMessage::error("Парсер не существует").send();
-            return redirect("/benchmarks");
-        }
-    };
-
-    if let Err(e) = repo.set_benchmark_association(benchmark.id, product.id, 1.0) {
-        log::error!("Failed to create benchmark association: {e}");
-        FlashMessage::error("Ошибка при добавлении мэтчинга").send();
-    } else {
-        FlashMessage::success("Мэтчинг добавлен.").send();
     }
 
     redirect("/benchmarks")
