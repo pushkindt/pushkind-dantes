@@ -35,13 +35,13 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let crawler = match repo.get_crawler_by_id(params.crawler_id) {
-        Ok(Some(crawler)) if crawler.hub_id == user.hub_id => crawler,
+    let crawler = match repo.get_crawler_by_id(params.crawler_id, user.hub_id) {
+        Ok(Some(crawler)) => crawler,
         Err(e) => {
             error!("Failed to get crawler: {e}");
             return Err(ServiceError::Internal);
         }
-        _ => return Err(ServiceError::NotFound),
+        Ok(None) => return Err(ServiceError::NotFound),
     };
 
     let mut list_query = ProductListQuery::default().crawler(crawler.id);

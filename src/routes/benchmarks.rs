@@ -193,6 +193,7 @@ pub async fn delete_benchmark_product(
     repo: web::Data<DieselRepository>,
     web::Form(form): web::Form<UnassociateForm>,
 ) -> impl Responder {
+    let benchmark_id = form.benchmark_id;
     match delete_benchmark_product_service(repo.get_ref(), &user, form) {
         Ok(true) => FlashMessage::success("Мэтчинг удален.").send(),
         Ok(false) => FlashMessage::error("Ошибка при удалении мэтчинга").send(),
@@ -207,7 +208,7 @@ pub async fn delete_benchmark_product(
         }
     }
 
-    redirect("/benchmarks")
+    redirect(&format!("/benchmark/{benchmark_id}"))
 }
 
 #[post("/benchmark/associate")]
@@ -216,6 +217,7 @@ pub async fn create_benchmark_product(
     repo: web::Data<DieselRepository>,
     web::Form(form): web::Form<AssociateForm>,
 ) -> impl Responder {
+    let benchmark_id = form.benchmark_id;
     match create_benchmark_product_service(repo.get_ref(), &user, form) {
         Ok(true) => FlashMessage::success("Мэтчинг добавлен.").send(),
         Ok(false) => FlashMessage::error("Ошибка при добавлении мэтчинга").send(),
@@ -230,5 +232,5 @@ pub async fn create_benchmark_product(
         }
     }
 
-    redirect("/benchmarks")
+    redirect(&format!("/benchmark/{benchmark_id}"))
 }

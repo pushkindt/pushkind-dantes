@@ -22,13 +22,14 @@ impl CrawlerReader for DieselRepository {
             .collect()) // Convert DbCrawler to DomainCrawler
     }
 
-    fn get_crawler_by_id(&self, id: i32) -> RepositoryResult<Option<Crawler>> {
+    fn get_crawler_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Crawler>> {
         use pushkind_common::schema::dantes::crawlers;
 
         let mut conn = self.conn()?;
 
         let result = crawlers::table
             .filter(crawlers::id.eq(id))
+            .filter(crawlers::hub_id.eq(hub_id))
             .first::<DbCrawler>(&mut conn)
             .optional()?;
 
