@@ -1,5 +1,4 @@
 use actix_multipart::form::MultipartForm;
-use actix_web::http::header;
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::models::auth::AuthenticatedUser;
@@ -45,9 +44,7 @@ pub async fn show_benchmarks(
 
             render_template(&tera, "benchmarks/index.html", &context)
         }
-        Err(ServiceError::Unauthorized) => HttpResponse::Found()
-            .append_header((header::LOCATION, "/na"))
-            .finish(),
+        Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
         Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
     }
@@ -75,9 +72,7 @@ pub async fn show_benchmark(
             context.insert("distances", &distances);
             render_template(&tera, "benchmarks/benchmark.html", &context)
         }
-        Err(ServiceError::Unauthorized) => HttpResponse::Found()
-            .append_header((header::LOCATION, "/na"))
-            .finish(),
+        Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
             redirect("/benchmarks")
@@ -96,9 +91,7 @@ pub async fn add_benchmark(
         Ok(true) => FlashMessage::success("Бенчмарк добавлен.").send(),
         Ok(false) => FlashMessage::error("Ошибка при добавлении бенчмарка").send(),
         Err(ServiceError::Unauthorized) => {
-            return HttpResponse::Found()
-                .append_header((header::LOCATION, "/na"))
-                .finish();
+            return redirect("/na");
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
@@ -124,9 +117,7 @@ pub async fn match_benchmark(
         Ok(true) => FlashMessage::success("Обработка запущена").send(),
         Ok(false) => FlashMessage::error("Не удалось начать обработку.").send(),
         Err(ServiceError::Unauthorized) => {
-            return HttpResponse::Found()
-                .append_header((header::LOCATION, "/na"))
-                .finish();
+            return redirect("/na");
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
@@ -149,9 +140,7 @@ pub async fn upload_benchmarks(
         Ok(true) => FlashMessage::success("Бенчмарки добавлены.").send(),
         Ok(false) => FlashMessage::error("Ошибка при добавлении бенчмарков").send(),
         Err(ServiceError::Unauthorized) => {
-            return HttpResponse::Found()
-                .append_header((header::LOCATION, "/na"))
-                .finish();
+            return redirect("/na");
         }
         Err(ServiceError::Internal) => {
             return HttpResponse::InternalServerError().finish();
@@ -185,9 +174,7 @@ pub async fn update_benchmark_prices(
             }
         }
         Err(ServiceError::Unauthorized) => {
-            return HttpResponse::Found()
-                .append_header((header::LOCATION, "/na"))
-                .finish();
+            return redirect("/na");
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
@@ -210,9 +197,7 @@ pub async fn delete_benchmark_product(
         Ok(true) => FlashMessage::success("Мэтчинг удален.").send(),
         Ok(false) => FlashMessage::error("Ошибка при удалении мэтчинга").send(),
         Err(ServiceError::Unauthorized) => {
-            return HttpResponse::Found()
-                .append_header((header::LOCATION, "/na"))
-                .finish();
+            return redirect("/na");
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк или товар не существует").send();
@@ -235,9 +220,7 @@ pub async fn create_benchmark_product(
         Ok(true) => FlashMessage::success("Мэтчинг добавлен.").send(),
         Ok(false) => FlashMessage::error("Ошибка при добавлении мэтчинга").send(),
         Err(ServiceError::Unauthorized) => {
-            return HttpResponse::Found()
-                .append_header((header::LOCATION, "/na"))
-                .finish();
+            return redirect("/na");
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк или товар не существует").send();

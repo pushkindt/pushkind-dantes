@@ -1,4 +1,3 @@
-use actix_web::http::header;
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::models::auth::AuthenticatedUser;
@@ -44,9 +43,7 @@ pub async fn show_products(
             context.insert("crawler", &crawler);
             render_template(&tera, "products/index.html", &context)
         }
-        Err(ServiceError::Unauthorized) => HttpResponse::Found()
-            .append_header((header::LOCATION, "/na"))
-            .finish(),
+        Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Парсер не существует").send();
             redirect("/")
@@ -73,9 +70,7 @@ pub async fn crawl_crawler(
             FlashMessage::error("Не удалось начать обработку.").send();
             redirect("/")
         }
-        Err(ServiceError::Unauthorized) => HttpResponse::Found()
-            .append_header((header::LOCATION, "/na"))
-            .finish(),
+        Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Парсер не существует").send();
             redirect("/")
@@ -102,9 +97,7 @@ pub async fn update_crawler_prices(
             FlashMessage::error("Не удалось начать обработку.").send();
             redirect("/")
         }
-        Err(ServiceError::Unauthorized) => HttpResponse::Found()
-            .append_header((header::LOCATION, "/na"))
-            .finish(),
+        Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Парсер не существует").send();
             redirect("/")

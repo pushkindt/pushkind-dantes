@@ -1,9 +1,8 @@
-use actix_web::http::header;
 use actix_web::{HttpResponse, Responder, get, web};
 use actix_web_flash_messages::IncomingFlashMessages;
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
-use pushkind_common::routes::{base_context, render_template};
+use pushkind_common::routes::{base_context, redirect, render_template};
 use tera::Tera;
 
 use crate::repository::DieselRepository;
@@ -31,9 +30,7 @@ pub async fn index(
 
             render_template(&tera, "main/index.html", &context)
         }
-        Err(ServiceError::Unauthorized) => HttpResponse::Found()
-            .append_header((header::LOCATION, "/na"))
-            .finish(),
+        Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
         Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
     }
