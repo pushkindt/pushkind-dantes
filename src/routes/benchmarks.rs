@@ -1,16 +1,17 @@
+use std::sync::Arc;
+
 use actix_multipart::form::MultipartForm;
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::{base_context, redirect, render_template};
-use pushkind_common::zmq::send_zmq_message;
+use pushkind_common::zmq::ZmqSender;
 use tera::Tera;
 
 use crate::forms::benchmarks::{
     AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
 };
-use crate::models::config::ServerConfig;
 use crate::repository::DieselRepository;
 use crate::services::benchmarks::{
     add_benchmark as add_benchmark_service,
@@ -109,11 +110,16 @@ pub async fn match_benchmark(
     benchmark_id: web::Path<i32>,
     user: AuthenticatedUser,
     repo: web::Data<DieselRepository>,
-    server_config: web::Data<ServerConfig>,
+    zmq_sender: web::Data<Arc<ZmqSender>>,
 ) -> impl Responder {
-    match match_benchmark_service(repo.get_ref(), &user, benchmark_id.into_inner(), |msg| {
-        send_zmq_message(msg, &server_config.zmq_address).map_err(|_| ())
-    }) {
+    match match_benchmark_service(
+        repo.get_ref(),
+        &user,
+        benchmark_id.into_inner(),
+        async |msg| zmq_sender.send_json(msg).await.map_err(|_| ()),
+    )
+    .await
+    {
         Ok(true) => FlashMessage::success("Обработка запущена").send(),
         Ok(false) => FlashMessage::error("Не удалось начать обработку.").send(),
         Err(ServiceError::Unauthorized) => {
@@ -158,11 +164,16 @@ pub async fn update_benchmark_prices(
     benchmark_id: web::Path<i32>,
     user: AuthenticatedUser,
     repo: web::Data<DieselRepository>,
-    server_config: web::Data<ServerConfig>,
+    zmq_sender: web::Data<Arc<ZmqSender>>,
 ) -> impl Responder {
-    match update_benchmark_prices_service(repo.get_ref(), &user, benchmark_id.into_inner(), |msg| {
-        send_zmq_message(msg, &server_config.zmq_address).map_err(|_| ())
-    }) {
+    match update_benchmark_prices_service(
+        repo.get_ref(),
+        &user,
+        benchmark_id.into_inner(),
+        async |msg| zmq_sender.send_json(msg).await.map_err(|_| ()),
+    )
+    .await
+    {
         Ok(results) => {
             for (selector, sent) in results {
                 if sent {

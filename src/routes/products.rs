@@ -1,13 +1,14 @@
+use std::sync::Arc;
+
 use actix_web::{HttpResponse, Responder, get, post, web};
 use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::models::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::{base_context, redirect, render_template};
-use pushkind_common::zmq::send_zmq_message;
+use pushkind_common::zmq::ZmqSender;
 use serde::Deserialize;
 use tera::Tera;
 
-use crate::models::config::ServerConfig;
 use crate::repository::DieselRepository;
 use crate::services::errors::ServiceError;
 use crate::services::products::{
@@ -57,11 +58,16 @@ pub async fn crawl_crawler(
     crawler_id: web::Path<i32>,
     user: AuthenticatedUser,
     repo: web::Data<DieselRepository>,
-    server_config: web::Data<ServerConfig>,
+    zmq_sender: web::Data<Arc<ZmqSender>>,
 ) -> impl Responder {
-    match crawl_crawler_service(repo.get_ref(), &user, crawler_id.into_inner(), |msg| {
-        send_zmq_message(msg, &server_config.zmq_address).map_err(|_| ())
-    }) {
+    match crawl_crawler_service(
+        repo.get_ref(),
+        &user,
+        crawler_id.into_inner(),
+        async |msg| zmq_sender.send_json(msg).await.map_err(|_| ()),
+    )
+    .await
+    {
         Ok(true) => {
             FlashMessage::success("Обработка запущена").send();
             redirect("/")
@@ -84,11 +90,16 @@ pub async fn update_crawler_prices(
     crawler_id: web::Path<i32>,
     user: AuthenticatedUser,
     repo: web::Data<DieselRepository>,
-    server_config: web::Data<ServerConfig>,
+    zmq_sender: web::Data<Arc<ZmqSender>>,
 ) -> impl Responder {
-    match update_crawler_prices_service(repo.get_ref(), &user, crawler_id.into_inner(), |msg| {
-        send_zmq_message(msg, &server_config.zmq_address).map_err(|_| ())
-    }) {
+    match update_crawler_prices_service(
+        repo.get_ref(),
+        &user,
+        crawler_id.into_inner(),
+        async |msg| zmq_sender.send_json(msg).await.map_err(|_| ()),
+    )
+    .await
+    {
         Ok(true) => {
             FlashMessage::success("Обработка запущена").send();
             redirect("/")
