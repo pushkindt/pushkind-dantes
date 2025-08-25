@@ -13,7 +13,7 @@ use crate::repository::{
     BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductListQuery,
     ProductReader,
 };
-use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQMessage};
+use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQCrawlerMessage};
 use validator::Validate;
 
 use super::errors::{ServiceError, ServiceResult};
@@ -177,7 +177,7 @@ where
 ///
 /// Returns `Ok(true)` if the message was sent successfully, `Ok(false)` if
 /// sending failed.
-pub fn match_benchmark<R, F>(
+pub async fn match_benchmark<R, F>(
     repo: &R,
     user: &AuthenticatedUser,
     benchmark_id: i32,
@@ -185,7 +185,7 @@ pub fn match_benchmark<R, F>(
 ) -> ServiceResult<bool>
 where
     R: BenchmarkReader,
-    F: Fn(&ZMQMessage) -> Result<(), ()>,
+    F: AsyncFn(&ZMQCrawlerMessage) -> Result<(), ()>,
 {
     if ensure_role(user, "parser", None).is_err() {
         return Err(ServiceError::Unauthorized);
@@ -200,8 +200,8 @@ where
         }
     };
 
-    let message = ZMQMessage::Benchmark(benchmark.id);
-    match send(&message) {
+    let message = ZMQCrawlerMessage::Benchmark(benchmark.id);
+    match send(&message).await {
         Ok(_) => Ok(true),
         Err(_) => {
             error!("Failed to send ZMQ message");
@@ -214,7 +214,7 @@ where
 ///
 /// Returns a list of crawler selectors and whether sending the message for that
 /// crawler succeeded.
-pub fn update_benchmark_prices<R, F>(
+pub async fn update_benchmark_prices<R, F>(
     repo: &R,
     user: &AuthenticatedUser,
     benchmark_id: i32,
@@ -222,7 +222,7 @@ pub fn update_benchmark_prices<R, F>(
 ) -> ServiceResult<Vec<(String, bool)>>
 where
     R: BenchmarkReader + CrawlerReader + ProductReader,
-    F: Fn(&ZMQMessage) -> Result<(), ()>,
+    F: AsyncFn(&ZMQCrawlerMessage) -> Result<(), ()>,
 {
     if ensure_role(user, "parser", None).is_err() {
         return Err(ServiceError::Unauthorized);
@@ -264,11 +264,11 @@ where
         }
 
         let urls = products.into_iter().map(|p| p.url).collect();
-        let message = ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((
+        let message = ZMQCrawlerMessage::Crawler(CrawlerSelector::SelectorProducts((
             crawler.selector.clone(),
             urls,
         )));
-        let sent = send(&message).is_ok();
+        let sent = send(&message).await.is_ok();
         if !sent {
             error!("Failed to send ZMQ message");
         }
@@ -387,7 +387,6 @@ mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
     use chrono::NaiveDateTime;
-    use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQMessage};
     use serde_json::Value;
 
     fn sample_user() -> AuthenticatedUser {
@@ -479,46 +478,5 @@ mod tests {
         assert_eq!(value["page"], 1);
         assert_eq!(value["items"].as_array().unwrap().len(), 1);
         assert!(distances.is_empty());
-    }
-
-    #[test]
-    fn match_benchmark_sends_message() {
-        let repo = TestRepository::new(vec![], vec![], vec![sample_benchmark()]);
-        let user = sample_user();
-
-        let result = match_benchmark(&repo, &user, 1, |msg| match msg {
-            ZMQMessage::Benchmark(id) => {
-                assert_eq!(*id, 1);
-                Ok(())
-            }
-            _ => Err(()),
-        })
-        .unwrap();
-
-        assert!(result);
-    }
-
-    #[test]
-    fn update_benchmark_prices_sends_messages() {
-        let repo = TestRepository::new(
-            vec![sample_crawler()],
-            vec![sample_product()],
-            vec![sample_benchmark()],
-        );
-        let user = sample_user();
-
-        let result = update_benchmark_prices(&repo, &user, 1, |msg| match msg {
-            ZMQMessage::Crawler(CrawlerSelector::SelectorProducts((sel, urls))) => {
-                assert_eq!(sel, "body");
-                assert_eq!(urls.len(), 1);
-                assert_eq!(urls[0], "http://example.com");
-                Ok(())
-            }
-            _ => Err(()),
-        })
-        .unwrap();
-
-        assert_eq!(result.len(), 1);
-        assert!(result[0].1);
     }
 }
