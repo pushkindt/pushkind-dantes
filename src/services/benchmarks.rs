@@ -387,7 +387,7 @@ where
 mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
-    use chrono::NaiveDateTime;
+    use chrono::DateTime;
     use serde_json::Value;
 
     fn sample_user() -> AuthenticatedUser {
@@ -409,7 +409,7 @@ mod tests {
             url: "http://example.com".into(),
             selector: "body".into(),
             processing: false,
-            updated_at: NaiveDateTime::from_timestamp(0, 0),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             num_products: 0,
         }
     }
@@ -426,8 +426,8 @@ mod tests {
             amount: None,
             description: None,
             url: "http://example.com".into(),
-            created_at: NaiveDateTime::from_timestamp(0, 0),
-            updated_at: NaiveDateTime::from_timestamp(0, 0),
+            created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: None,
         }
     }
@@ -443,8 +443,8 @@ mod tests {
             price: 1.0,
             amount: 1.0,
             description: "desc".into(),
-            created_at: NaiveDateTime::from_timestamp(0, 0),
-            updated_at: NaiveDateTime::from_timestamp(0, 0),
+            created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: None,
             processing: false,
             num_products: 0,

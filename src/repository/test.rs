@@ -85,7 +85,7 @@ impl CrawlerReader for TestRepository {
             .collect())
     }
 
-    fn get_crawler_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Crawler>> {
+    fn get_crawler_by_id(&self, id: i32, _hub_id: i32) -> RepositoryResult<Option<Crawler>> {
         Ok(self.crawlers.get(&id).map(Self::clone_crawler))
     }
 }
@@ -137,7 +137,7 @@ impl BenchmarkReader for TestRepository {
         Ok((total, items))
     }
 
-    fn get_benchmark_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Benchmark>> {
+    fn get_benchmark_by_id(&self, id: i32, _hub_id: i32) -> RepositoryResult<Option<Benchmark>> {
         Ok(self
             .benchmarks
             .iter()

@@ -34,7 +34,7 @@ where
 mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
-    use chrono::NaiveDateTime;
+    use chrono::DateTime;
     use pushkind_common::domain::dantes::crawler::Crawler;
 
     fn sample_user() -> AuthenticatedUser {
@@ -56,7 +56,7 @@ mod tests {
             url: "http://example.com".into(),
             selector: "body".into(),
             processing: false,
-            updated_at: NaiveDateTime::from_timestamp(0, 0),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             num_products: 0,
         }
     }
