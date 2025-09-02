@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Integer, Text};
-use pushkind_common::domain::product::Product;
-use pushkind_common::models::product::Product as DbProduct;
+use pushkind_common::domain::dantes::product::Product;
+use pushkind_common::models::dantes::product::Product as DbProduct;
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::{DieselRepository, ProductListQuery, ProductReader, ProductWriter};

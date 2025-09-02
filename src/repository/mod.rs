@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use pushkind_common::db::{DbConnection, DbPool};
-use pushkind_common::domain::benchmark::{Benchmark, NewBenchmark};
-use pushkind_common::domain::crawler::Crawler;
-use pushkind_common::domain::product::Product;
+use pushkind_common::domain::dantes::benchmark::{Benchmark, NewBenchmark};
+use pushkind_common::domain::dantes::crawler::Crawler;
+use pushkind_common::domain::dantes::product::Product;
 use pushkind_common::pagination::Pagination;
 use pushkind_common::repository::errors::RepositoryResult;
 

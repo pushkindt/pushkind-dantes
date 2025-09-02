@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use log::error;
-use pushkind_common::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
-use pushkind_common::models::auth::AuthenticatedUser;
+use pushkind_common::domain::auth::AuthenticatedUser;
+use pushkind_common::domain::dantes::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::ensure_role;
 
@@ -13,7 +13,7 @@ use crate::repository::{
     BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductListQuery,
     ProductReader,
 };
-use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQCrawlerMessage};
+use pushkind_common::models::dantes::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use validator::Validate;
 
 use super::errors::{ServiceError, ServiceResult};
@@ -46,6 +46,7 @@ where
 /// to the user's hub and gathers crawlers with their products and similarity
 /// distances. Repository errors are mapped to [`ServiceError`] variants so the
 /// HTTP route remains a thin wrapper.
+#[allow(clippy::type_complexity)]
 pub fn show_benchmark<R>(
     repo: &R,
     user: &AuthenticatedUser,
@@ -386,7 +387,7 @@ where
 mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
-    use chrono::NaiveDateTime;
+    use chrono::DateTime;
     use serde_json::Value;
 
     fn sample_user() -> AuthenticatedUser {
@@ -408,7 +409,7 @@ mod tests {
             url: "http://example.com".into(),
             selector: "body".into(),
             processing: false,
-            updated_at: NaiveDateTime::from_timestamp(0, 0),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             num_products: 0,
         }
     }
@@ -425,8 +426,8 @@ mod tests {
             amount: None,
             description: None,
             url: "http://example.com".into(),
-            created_at: NaiveDateTime::from_timestamp(0, 0),
-            updated_at: NaiveDateTime::from_timestamp(0, 0),
+            created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: None,
         }
     }
@@ -442,8 +443,8 @@ mod tests {
             price: 1.0,
             amount: 1.0,
             description: "desc".into(),
-            created_at: NaiveDateTime::from_timestamp(0, 0),
-            updated_at: NaiveDateTime::from_timestamp(0, 0),
+            created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: None,
             processing: false,
             num_products: 0,

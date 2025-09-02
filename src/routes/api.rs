@@ -1,5 +1,5 @@
 use actix_web::{HttpResponse, Responder, get, web};
-use pushkind_common::models::auth::AuthenticatedUser;
+use pushkind_common::domain::auth::AuthenticatedUser;
 
 use crate::repository::DieselRepository;
 use crate::services::api::{ApiV1ProductsQueryParams, api_v1_products as api_v1_products_service};

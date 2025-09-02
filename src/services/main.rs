@@ -1,6 +1,6 @@
 use log::error;
-use pushkind_common::domain::crawler::Crawler;
-use pushkind_common::models::auth::AuthenticatedUser;
+use pushkind_common::domain::auth::AuthenticatedUser;
+use pushkind_common::domain::dantes::crawler::Crawler;
 use pushkind_common::routes::ensure_role;
 
 use crate::repository::CrawlerReader;
@@ -34,8 +34,8 @@ where
 mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
-    use chrono::NaiveDateTime;
-    use pushkind_common::domain::crawler::Crawler;
+    use chrono::DateTime;
+    use pushkind_common::domain::dantes::crawler::Crawler;
 
     fn sample_user() -> AuthenticatedUser {
         AuthenticatedUser {
@@ -56,7 +56,7 @@ mod tests {
             url: "http://example.com".into(),
             selector: "body".into(),
             processing: false,
-            updated_at: NaiveDateTime::from_timestamp(0, 0),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             num_products: 0,
         }
     }

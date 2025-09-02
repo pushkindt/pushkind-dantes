@@ -1,6 +1,6 @@
 use log::error;
-use pushkind_common::domain::product::Product;
-use pushkind_common::models::auth::AuthenticatedUser;
+use pushkind_common::domain::auth::AuthenticatedUser;
+use pushkind_common::domain::dantes::product::Product;
 use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
 use pushkind_common::routes::ensure_role;
 use serde::Deserialize;
@@ -76,8 +76,8 @@ where
 mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
-    use chrono::NaiveDateTime;
-    use pushkind_common::domain::{crawler::Crawler, product::Product};
+    use chrono::DateTime;
+    use pushkind_common::domain::dantes::{crawler::Crawler, product::Product};
 
     fn sample_user() -> AuthenticatedUser {
         AuthenticatedUser {
@@ -98,7 +98,7 @@ mod tests {
             url: "http://example.com".into(),
             selector: "body".into(),
             processing: false,
-            updated_at: NaiveDateTime::from_timestamp(0, 0),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             num_products: 0,
         }
     }
@@ -115,8 +115,8 @@ mod tests {
             amount: None,
             description: None,
             url: "http://example.com/apple".into(),
-            created_at: NaiveDateTime::from_timestamp(0, 0),
-            updated_at: NaiveDateTime::from_timestamp(0, 0),
+            created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: Some(vec![1, 2, 3]),
         }
     }
