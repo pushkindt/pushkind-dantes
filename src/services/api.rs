@@ -1,6 +1,6 @@
 use log::error;
-use pushkind_common::domain::product::Product;
-use pushkind_common::models::auth::AuthenticatedUser;
+use pushkind_common::domain::auth::AuthenticatedUser;
+use pushkind_common::domain::dantes::product::Product;
 use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
 use pushkind_common::routes::ensure_role;
 use serde::Deserialize;
@@ -77,7 +77,7 @@ mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
     use chrono::NaiveDateTime;
-    use pushkind_common::domain::{crawler::Crawler, product::Product};
+    use pushkind_common::domain::dantes::{crawler::Crawler, product::Product};
 
     fn sample_user() -> AuthenticatedUser {
         AuthenticatedUser {

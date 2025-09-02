@@ -1,6 +1,6 @@
 use diesel::prelude::*;
-use pushkind_common::domain::benchmark::{Benchmark, NewBenchmark};
-use pushkind_common::models::benchmark::{
+use pushkind_common::domain::dantes::benchmark::{Benchmark, NewBenchmark};
+use pushkind_common::models::dantes::benchmark::{
     Benchmark as DbBenchmark, NewBenchmark as DbNewBenchmark,
 };
 use pushkind_common::repository::errors::RepositoryResult;

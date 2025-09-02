@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use pushkind_common::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
+use pushkind_common::domain::dantes::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::repository::{

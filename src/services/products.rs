@@ -1,7 +1,7 @@
 use log::error;
-use pushkind_common::domain::{crawler::Crawler, product::Product};
-use pushkind_common::models::auth::AuthenticatedUser;
-use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQCrawlerMessage};
+use pushkind_common::domain::auth::AuthenticatedUser;
+use pushkind_common::domain::dantes::{crawler::Crawler, product::Product};
+use pushkind_common::models::dantes::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::ensure_role;
 
@@ -150,8 +150,8 @@ mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
     use chrono::NaiveDateTime;
-    use pushkind_common::models::auth::AuthenticatedUser;
-    use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQCrawlerMessage};
+    use pushkind_common::domain::auth::AuthenticatedUser;
+    use pushkind_common::models::dantes::zmq::{CrawlerSelector, ZMQCrawlerMessage};
     use serde_json::Value;
 
     fn sample_user() -> AuthenticatedUser {

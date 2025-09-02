@@ -6,7 +6,7 @@ use serde::Deserialize;
 use thiserror::Error;
 use validator::Validate;
 
-use pushkind_common::domain::benchmark::NewBenchmark;
+use pushkind_common::domain::dantes::benchmark::NewBenchmark;
 
 /// Form data for creating a single benchmark item via the UI.
 #[derive(Deserialize, Validate)]

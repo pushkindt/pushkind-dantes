@@ -1,6 +1,6 @@
 use log::error;
-use pushkind_common::domain::crawler::Crawler;
-use pushkind_common::models::auth::AuthenticatedUser;
+use pushkind_common::domain::auth::AuthenticatedUser;
+use pushkind_common::domain::dantes::crawler::Crawler;
 use pushkind_common::routes::ensure_role;
 
 use crate::repository::CrawlerReader;
@@ -35,7 +35,7 @@ mod tests {
     use super::*;
     use crate::repository::test::TestRepository;
     use chrono::NaiveDateTime;
-    use pushkind_common::domain::crawler::Crawler;
+    use pushkind_common::domain::dantes::crawler::Crawler;
 
     fn sample_user() -> AuthenticatedUser {
         AuthenticatedUser {

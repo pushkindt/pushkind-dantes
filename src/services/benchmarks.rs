@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use log::error;
-use pushkind_common::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
-use pushkind_common::models::auth::AuthenticatedUser;
+use pushkind_common::domain::auth::AuthenticatedUser;
+use pushkind_common::domain::dantes::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::ensure_role;
 
@@ -13,7 +13,7 @@ use crate::repository::{
     BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductListQuery,
     ProductReader,
 };
-use pushkind_common::models::zmq::dantes::{CrawlerSelector, ZMQCrawlerMessage};
+use pushkind_common::models::dantes::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use validator::Validate;
 
 use super::errors::{ServiceError, ServiceResult};
@@ -46,6 +46,7 @@ where
 /// to the user's hub and gathers crawlers with their products and similarity
 /// distances. Repository errors are mapped to [`ServiceError`] variants so the
 /// HTTP route remains a thin wrapper.
+#[allow(clippy::type_complexity)]
 pub fn show_benchmark<R>(
     repo: &R,
     user: &AuthenticatedUser,
