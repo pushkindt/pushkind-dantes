@@ -13,6 +13,7 @@ pub struct TestDb {
 }
 
 impl TestDb {
+    #[allow(dead_code)]
     pub fn new(filename: &str) -> Self {
         std::fs::remove_file(filename).ok(); // Clean up old DB
 
@@ -28,6 +29,7 @@ impl TestDb {
             pool,
         }
     }
+    #[allow(dead_code)]
     pub fn pool(&self) -> DbPool {
         self.pool.clone()
     }
