@@ -2,7 +2,7 @@ use log::error;
 use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::domain::dantes::product::Product;
 use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
-use pushkind_common::routes::ensure_role;
+use pushkind_common::routes::check_role;
 use serde::Deserialize;
 
 use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
@@ -31,7 +31,7 @@ pub fn api_v1_products<R>(
 where
     R: CrawlerReader + ProductReader,
 {
-    if ensure_role(user, "parser", None).is_err() {
+    if !check_role("parser", &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 

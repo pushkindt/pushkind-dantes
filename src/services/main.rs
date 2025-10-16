@@ -1,7 +1,7 @@
 use log::error;
 use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::domain::dantes::crawler::Crawler;
-use pushkind_common::routes::ensure_role;
+use pushkind_common::routes::check_role;
 
 use crate::repository::CrawlerReader;
 
@@ -17,7 +17,7 @@ pub fn show_index<R>(repo: &R, user: &AuthenticatedUser) -> ServiceResult<Vec<Cr
 where
     R: CrawlerReader,
 {
-    if ensure_role(user, "parser", None).is_err() {
+    if !check_role("parser", &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
