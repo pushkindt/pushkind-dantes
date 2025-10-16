@@ -41,10 +41,10 @@ jobs:
           if_key_exists: fail # replace / ignore / fail; optional (defaults to fail)
       - name: Deploy
         run: |
-          ssh cicd@dantes.pushkind.com "supervisorctl stop dantes"
+          ssh cicd@dantes.pushkind.com "sudo /usr/bin/systemctl stop pushkind-dantes.service"
           scp ./target/release/pushkind-dantes cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./assets/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./templates/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./migrations/ cicd@dantes.pushkind.com:/var/www9/html/
           ssh cicd@dantes.pushkind.com "cd /var/www9/html/ && /home/cicd/.cargo/bin/diesel migration run"
-          ssh cicd@dantes.pushkind.com "supervisorctl start dantes"
+          ssh cicd@dantes.pushkind.com "sudo /usr/bin/systemctl start pushkind-dantes.service"

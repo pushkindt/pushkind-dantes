@@ -3,7 +3,7 @@ use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::domain::dantes::{crawler::Crawler, product::Product};
 use pushkind_common::models::dantes::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
-use pushkind_common::routes::ensure_role;
+use pushkind_common::routes::check_role;
 
 use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
 
@@ -24,7 +24,7 @@ pub fn show_products<R>(
 where
     R: CrawlerReader + ProductReader,
 {
-    if ensure_role(user, "parser", None).is_err() {
+    if !check_role("parser", &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -70,7 +70,7 @@ where
     R: CrawlerReader,
     F: AsyncFn(&ZMQCrawlerMessage) -> Result<(), ()>,
 {
-    if ensure_role(user, "parser", None).is_err() {
+    if !check_role("parser", &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -110,7 +110,7 @@ where
     R: CrawlerReader + ProductReader,
     F: AsyncFn(&ZMQCrawlerMessage) -> Result<(), ()>,
 {
-    if ensure_role(user, "parser", None).is_err() {
+    if !check_role("parser", &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
