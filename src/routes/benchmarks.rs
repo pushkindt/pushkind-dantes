@@ -6,7 +6,7 @@ use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::{base_context, redirect, render_template};
-use pushkind_common::zmq::ZmqSender;
+use pushkind_common::zmq::{ZmqSender, ZmqSenderExt};
 use tera::Tera;
 
 use crate::forms::benchmarks::{
