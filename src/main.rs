@@ -50,7 +50,7 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    let zmq_sender = match ZmqSender::start(ZmqSenderOptions::pub_default(&zmq_address)) {
+    let zmq_sender = match ZmqSender::start(ZmqSenderOptions::push_default(&zmq_address)) {
         Ok(zmq_sender) => zmq_sender,
         Err(e) => {
             log::error!("Failed to start ZMQ sender: {e}");
