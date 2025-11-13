@@ -118,6 +118,7 @@ mod tests {
             created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: Some(vec![1, 2, 3]),
+            images: vec![],
         }
     }
 
