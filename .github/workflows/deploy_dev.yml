@@ -47,5 +47,5 @@ jobs:
           scp -r ./assets/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./templates/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./migrations/ cicd@dantes.pushkind.com:/var/www9/html/
-          ssh cicd@dantes.pushkind.com "cd /var/www9/html/ && /home/cicd/.cargo/bin/diesel migration run"
+          ssh cicd@dantes.pushkind.com "cd /var/www9/html/ && /home/cicd/.cargo/bin/diesel migration run --database-url app.db"
           ssh cicd@dantes.pushkind.com "sudo /usr/bin/systemctl start pushkind-dantes.service"
