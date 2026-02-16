@@ -43,6 +43,7 @@ jobs:
         run: |
           ssh cicd@dantes.pushkind.com "sudo /usr/bin/systemctl stop pushkind-dantes.service"
           scp ./target/release/pushkind-dantes cicd@dantes.pushkind.com:/var/www9/html/
+          scp -r ./config/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./assets/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./templates/ cicd@dantes.pushkind.com:/var/www9/html/
           scp -r ./migrations/ cicd@dantes.pushkind.com:/var/www9/html/

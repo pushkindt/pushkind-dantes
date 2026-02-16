@@ -1,0 +1,6 @@
+address: 127.0.0.1
+templates_dir: templates/**/*
+secret: env::APP_SECRET
+database_url: app.db
+zmq_crawlers_pub: tcp://127.0.0.1:5550
+zmq_crawlers_sub: tcp://127.0.0.1:5550

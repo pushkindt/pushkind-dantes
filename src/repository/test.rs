@@ -52,6 +52,7 @@ impl TestRepository {
             created_at: p.created_at,
             updated_at: p.updated_at,
             embedding: p.embedding.clone(),
+            images: vec![],
         }
     }
 

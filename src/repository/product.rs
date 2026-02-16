@@ -17,16 +17,29 @@ struct ProductCount {
 
 impl ProductReader for DieselRepository {
     fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
-        use pushkind_common::schema::dantes::products;
+        use pushkind_common::schema::dantes::{product_images, products};
 
         let mut conn = self.conn()?;
 
-        let item = products::table
+        let db_product = products::table
             .filter(products::id.eq(id))
             .first::<DbProduct>(&mut conn)
             .optional()?;
 
-        Ok(item.map(Into::into))
+        // Short-circuit early if no product exists
+        let mut product = match db_product {
+            Some(p) => Product::from(p),
+            None => return Ok(None),
+        };
+
+        let images = product_images::table
+            .filter(product_images::product_id.eq(id))
+            .select(product_images::url)
+            .load::<String>(&mut conn)?;
+
+        product.images = images;
+
+        Ok(Some(product))
     }
 
     fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>> {
@@ -44,7 +57,9 @@ impl ProductReader for DieselRepository {
     }
 
     fn list_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
-        use pushkind_common::schema::dantes::{crawlers, product_benchmark, products};
+        use pushkind_common::schema::dantes::{
+            crawlers, product_benchmark, product_images, products,
+        };
 
         let mut conn = self.conn()?;
 
@@ -90,12 +105,31 @@ impl ProductReader for DieselRepository {
         }
 
         // Final load
-        let items = items
+        let mut items = items
             .order(products::name.asc())
             .load::<DbProduct>(&mut conn)?
             .into_iter()
             .map(Into::into)
             .collect::<Vec<Product>>();
+
+        if !items.is_empty() {
+            let product_ids: Vec<i32> = items.iter().map(|product| product.id).collect();
+            let image_rows = product_images::table
+                .filter(product_images::product_id.eq_any(&product_ids))
+                .select((product_images::product_id, product_images::url))
+                .load::<(i32, String)>(&mut conn)?;
+
+            let mut image_map: HashMap<i32, Vec<String>> = HashMap::new();
+            for (product_id, url) in image_rows {
+                image_map.entry(product_id).or_default().push(url);
+            }
+
+            for product in &mut items {
+                if let Some(images) = image_map.remove(&product.id) {
+                    product.images = images;
+                }
+            }
+        }
 
         Ok((total, items))
     }
