@@ -1,11 +1,16 @@
 //! Application entry point building the Actix-Web server.
+#[cfg(feature = "server")]
 use std::env;
 
+#[cfg(feature = "server")]
 use config::Config;
+#[cfg(feature = "server")]
 use dotenvy::dotenv;
 
+#[cfg(feature = "server")]
 use pushkind_dantes::{models::config::ServerConfig, run};
 
+#[cfg(feature = "server")]
 #[actix_web::main]
 async fn main() {
     // Load environment variables from `.env` in local development.
@@ -48,4 +53,10 @@ async fn main() {
             std::process::exit(1);
         }
     }
+}
+
+#[cfg(not(feature = "server"))]
+fn main() {
+    eprintln!("The binary requires the `server` feature.");
+    std::process::exit(1);
 }

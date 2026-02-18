@@ -2,41 +2,69 @@
 //!
 //! This crate exposes forms, models, repositories, routes and service layers
 //! used by the Dantes web application.
+#[cfg(feature = "server")]
 use std::sync::Arc;
 
+#[cfg(feature = "server")]
 use actix_files::Files;
+#[cfg(feature = "server")]
 use actix_identity::IdentityMiddleware;
+#[cfg(feature = "server")]
 use actix_session::{SessionMiddleware, storage::CookieSessionStore};
+#[cfg(feature = "server")]
 use actix_web::cookie::Key;
+#[cfg(feature = "server")]
 use actix_web::{App, HttpServer, middleware, web};
+#[cfg(feature = "server")]
 use actix_web_flash_messages::{FlashMessagesFramework, storage::CookieMessageStore};
+#[cfg(feature = "server")]
 use pushkind_common::db::establish_connection_pool;
+#[cfg(feature = "server")]
 use pushkind_common::middleware::RedirectUnauthorized;
+#[cfg(feature = "server")]
 use pushkind_common::models::config::CommonServerConfig;
+#[cfg(feature = "server")]
 use pushkind_common::routes::{logout, not_assigned};
+#[cfg(feature = "server")]
 use pushkind_common::zmq::{ZmqSender, ZmqSenderOptions};
+#[cfg(feature = "server")]
 use tera::Tera;
 
+#[cfg(feature = "server")]
 use crate::models::config::ServerConfig;
+#[cfg(feature = "server")]
 use crate::repository::DieselRepository;
+#[cfg(feature = "server")]
 use crate::routes::api::api_v1_products;
+#[cfg(feature = "server")]
 use crate::routes::benchmarks::{
     add_benchmark, create_benchmark_product, delete_benchmark_product, match_benchmark,
     show_benchmark, show_benchmarks, update_benchmark_prices, upload_benchmarks,
 };
+#[cfg(feature = "server")]
 use crate::routes::main::index;
+#[cfg(feature = "server")]
 use crate::routes::products::{crawl_crawler, show_products, update_crawler_prices};
 
+#[cfg(feature = "data")]
 pub mod domain;
+#[cfg(feature = "server")]
 pub mod forms;
+#[cfg(feature = "data")]
 pub mod models;
+#[cfg(feature = "server")]
 pub mod repository;
+#[cfg(feature = "server")]
 pub mod routes;
+#[cfg(feature = "data")]
 pub mod schema;
+#[cfg(feature = "server")]
 pub mod services;
 
+#[cfg(feature = "server")]
 pub const SERVICE_ACCESS_ROLE: &str = "parser";
 
+#[cfg(feature = "server")]
 pub async fn run(server_config: ServerConfig) -> std::io::Result<()> {
     let common_config = CommonServerConfig {
         auth_service_url: server_config.auth_service_url.to_string(),
