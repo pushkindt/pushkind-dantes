@@ -5,11 +5,11 @@ use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::check_role;
 use validator::Validate;
 
+use crate::domain::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use crate::forms::benchmarks::{
     AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
 };
-use crate::models::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::repository::{
     BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductListQuery,
     ProductReader,

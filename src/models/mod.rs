@@ -4,5 +4,3 @@ pub mod config;
 pub mod crawler;
 pub mod product;
 pub mod product_image;
-#[cfg(feature = "server")]
-pub mod zmq;
