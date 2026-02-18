@@ -2,8 +2,8 @@ use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::check_role;
 
+use crate::domain::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::domain::{crawler::Crawler, product::Product};
-use crate::models::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
 
 use super::errors::{ServiceError, ServiceResult};
