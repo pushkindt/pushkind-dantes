@@ -27,10 +27,12 @@ use crate::routes::benchmarks::{
 use crate::routes::main::index;
 use crate::routes::products::{crawl_crawler, show_products, update_crawler_prices};
 
+pub mod domain;
 pub mod forms;
 pub mod models;
 pub mod repository;
 pub mod routes;
+pub mod schema;
 pub mod services;
 
 pub const SERVICE_ACCESS_ROLE: &str = "parser";

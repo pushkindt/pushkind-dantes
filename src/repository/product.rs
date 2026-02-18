@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Integer, Text};
-use pushkind_common::domain::dantes::product::Product;
-use pushkind_common::models::dantes::product::Product as DbProduct;
 use pushkind_common::repository::errors::RepositoryResult;
 
+use crate::domain::product::Product;
+use crate::models::product::Product as DbProduct;
 use crate::repository::{DieselRepository, ProductListQuery, ProductReader, ProductWriter};
 
 /// Helper struct used to capture the result of a `COUNT(*)` query.
@@ -17,7 +17,7 @@ struct ProductCount {
 
 impl ProductReader for DieselRepository {
     fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
-        use pushkind_common::schema::dantes::{product_images, products};
+        use crate::schema::{product_images, products};
 
         let mut conn = self.conn()?;
 
@@ -43,7 +43,7 @@ impl ProductReader for DieselRepository {
     }
 
     fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>> {
-        use pushkind_common::schema::dantes::product_benchmark;
+        use crate::schema::product_benchmark;
 
         let mut conn = self.conn()?;
 
@@ -57,9 +57,7 @@ impl ProductReader for DieselRepository {
     }
 
     fn list_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
-        use pushkind_common::schema::dantes::{
-            crawlers, product_benchmark, product_images, products,
-        };
+        use crate::schema::{crawlers, product_benchmark, product_images, products};
 
         let mut conn = self.conn()?;
 

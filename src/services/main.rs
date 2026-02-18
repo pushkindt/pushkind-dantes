@@ -1,8 +1,7 @@
-use log::error;
 use pushkind_common::domain::auth::AuthenticatedUser;
-use pushkind_common::domain::dantes::crawler::Crawler;
 use pushkind_common::routes::check_role;
 
+use crate::domain::crawler::Crawler;
 use crate::repository::CrawlerReader;
 
 use super::errors::{ServiceError, ServiceResult};
@@ -24,7 +23,7 @@ where
     match repo.list_crawlers(user.hub_id) {
         Ok(crawlers) => Ok(crawlers),
         Err(e) => {
-            error!("Failed to list crawlers: {e}");
+            log::error!("Failed to list crawlers: {e}");
             Err(ServiceError::Internal)
         }
     }
@@ -33,9 +32,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::crawler::Crawler;
     use crate::repository::test::TestRepository;
     use chrono::DateTime;
-    use pushkind_common::domain::dantes::crawler::Crawler;
 
     fn sample_user() -> AuthenticatedUser {
         AuthenticatedUser {

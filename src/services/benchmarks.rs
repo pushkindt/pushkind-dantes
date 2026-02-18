@@ -1,20 +1,19 @@
 use std::collections::HashMap;
 
-use log::error;
 use pushkind_common::domain::auth::AuthenticatedUser;
-use pushkind_common::domain::dantes::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::check_role;
+use validator::Validate;
 
+use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use crate::forms::benchmarks::{
     AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
 };
+use crate::models::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::repository::{
     BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductListQuery,
     ProductReader,
 };
-use pushkind_common::models::dantes::zmq::{CrawlerSelector, ZMQCrawlerMessage};
-use validator::Validate;
 
 use super::errors::{ServiceError, ServiceResult};
 
@@ -34,7 +33,7 @@ where
     match repo.list_benchmarks(BenchmarkListQuery::new(user.hub_id)) {
         Ok((_total, benchmarks)) => Ok(benchmarks),
         Err(e) => {
-            error!("Failed to list benchmarks: {e}");
+            log::error!("Failed to list benchmarks: {e}");
             Err(ServiceError::Internal)
         }
     }
@@ -67,7 +66,7 @@ where
         Ok(Some(benchmark)) => benchmark,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get benchmark: {e}");
+            log::error!("Failed to get benchmark: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -75,7 +74,7 @@ where
     let crawlers = match repo.list_crawlers(user.hub_id) {
         Ok(crawlers) => crawlers,
         Err(e) => {
-            error!("Failed to list crawlers: {e}");
+            log::error!("Failed to list crawlers: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -90,7 +89,7 @@ where
         ) {
             Ok((total, items)) => Paginated::new(items, 1, total.div_ceil(DEFAULT_ITEMS_PER_PAGE)),
             Err(e) => {
-                error!("Failed to list products: {e}");
+                log::error!("Failed to list products: {e}");
                 return Err(ServiceError::Internal);
             }
         };
@@ -100,7 +99,7 @@ where
     let distances = match repo.list_distances(benchmark_id) {
         Ok(distances) => distances,
         Err(e) => {
-            error!("Failed to list distances: {e}");
+            log::error!("Failed to list distances: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -126,7 +125,7 @@ where
     }
 
     if let Err(e) = form.validate() {
-        error!("Failed to validate form: {e}");
+        log::error!("Failed to validate form: {e}");
         return Ok(false);
     }
 
@@ -135,7 +134,7 @@ where
     match repo.create_benchmark(&[new_benchmark]) {
         Ok(_) => Ok(true),
         Err(e) => {
-            error!("Failed to add a benchmark: {e}");
+            log::error!("Failed to add a benchmark: {e}");
             Ok(false)
         }
     }
@@ -160,7 +159,7 @@ where
     let benchmarks = match form.parse(user.hub_id) {
         Ok(benchmarks) => benchmarks,
         Err(e) => {
-            error!("Failed to parse benchmarks: {e}");
+            log::error!("Failed to parse benchmarks: {e}");
             return Ok(false);
         }
     };
@@ -168,7 +167,7 @@ where
     match repo.create_benchmark(&benchmarks) {
         Ok(_) => Ok(true),
         Err(e) => {
-            error!("Failed to add benchmarks: {e}");
+            log::error!("Failed to add benchmarks: {e}");
             Ok(false)
         }
     }
@@ -196,7 +195,7 @@ where
         Ok(Some(benchmark)) => benchmark,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get benchmark: {e}");
+            log::error!("Failed to get benchmark: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -205,7 +204,7 @@ where
     match send(&message).await {
         Ok(_) => Ok(true),
         Err(_) => {
-            error!("Failed to send ZMQ message");
+            log::error!("Failed to send ZMQ message");
             Ok(false)
         }
     }
@@ -233,7 +232,7 @@ where
         Ok(Some(benchmark)) => benchmark,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get benchmark: {e}");
+            log::error!("Failed to get benchmark: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -241,7 +240,7 @@ where
     let crawlers = match repo.list_crawlers(user.hub_id) {
         Ok(crawlers) => crawlers,
         Err(e) => {
-            error!("Failed to list crawlers: {e}");
+            log::error!("Failed to list crawlers: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -255,7 +254,7 @@ where
         ) {
             Ok((_total, products)) => products,
             Err(e) => {
-                error!("Failed to list products: {e}");
+                log::error!("Failed to list products: {e}");
                 return Err(ServiceError::Internal);
             }
         };
@@ -271,7 +270,7 @@ where
         )));
         let sent = send(&message).await.is_ok();
         if !sent {
-            error!("Failed to send ZMQ message");
+            log::error!("Failed to send ZMQ message");
         }
         results.push((crawler.selector, sent));
     }
@@ -299,7 +298,7 @@ where
         Ok(Some(b)) => b,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get benchmark: {e}");
+            log::error!("Failed to get benchmark: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -308,7 +307,7 @@ where
         Ok(Some(p)) => p,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get product: {e}");
+            log::error!("Failed to get product: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -317,7 +316,7 @@ where
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get crawler: {e}");
+            log::error!("Failed to get crawler: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -325,7 +324,7 @@ where
     match repo.remove_benchmark_association(benchmark.id, product.id) {
         Ok(_) => Ok(true),
         Err(e) => {
-            error!("Failed to delete association: {e}");
+            log::error!("Failed to delete association: {e}");
             Ok(false)
         }
     }
@@ -351,7 +350,7 @@ where
         Ok(Some(b)) => b,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get benchmark: {e}");
+            log::error!("Failed to get benchmark: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -360,7 +359,7 @@ where
         Ok(Some(p)) => p,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get product: {e}");
+            log::error!("Failed to get product: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -369,7 +368,7 @@ where
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get crawler: {e}");
+            log::error!("Failed to get crawler: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -377,7 +376,7 @@ where
     match repo.set_benchmark_association(benchmark.id, product.id, 1.0) {
         Ok(_) => Ok(true),
         Err(e) => {
-            error!("Failed to create benchmark association: {e}");
+            log::error!("Failed to create benchmark association: {e}");
             Ok(false)
         }
     }

@@ -1,10 +1,9 @@
-use log::error;
 use pushkind_common::domain::auth::AuthenticatedUser;
-use pushkind_common::domain::dantes::product::Product;
 use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
 use pushkind_common::routes::check_role;
 use serde::Deserialize;
 
+use crate::domain::product::Product;
 use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
 
 use super::errors::{ServiceError, ServiceResult};
@@ -38,7 +37,7 @@ where
     let crawler = match repo.get_crawler_by_id(params.crawler_id, user.hub_id) {
         Ok(Some(crawler)) => crawler,
         Err(e) => {
-            error!("Failed to get crawler: {e}");
+            log::error!("Failed to get crawler: {e}");
             return Err(ServiceError::Internal);
         }
         Ok(None) => return Err(ServiceError::NotFound),
@@ -66,7 +65,7 @@ where
             })
             .collect::<Vec<Product>>()),
         Err(e) => {
-            error!("Failed to list products: {e}");
+            log::error!("Failed to list products: {e}");
             Err(ServiceError::Internal)
         }
     }
@@ -75,9 +74,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::{crawler::Crawler, product::Product};
     use crate::repository::test::TestRepository;
     use chrono::DateTime;
-    use pushkind_common::domain::dantes::{crawler::Crawler, product::Product};
 
     fn sample_user() -> AuthenticatedUser {
         AuthenticatedUser {
