@@ -3,34 +3,67 @@ name = "pushkind-dantes"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["server"]
+# Compile only the reusable persistence/domain layer (`domain`, `models`, `schema`).
+data = [
+    "dep:chrono",
+    "dep:diesel",
+    "dep:pushkind-common",
+    "dep:serde",
+    "dep:thiserror",
+    "dep:validator",
+    "pushkind-common/db",
+]
+# Build the full Actix-web application (HTTP routes, services, templates, etc).
+server = [
+    "data",
+    "dep:actix-files",
+    "dep:actix-identity",
+    "dep:actix-multipart",
+    "dep:actix-session",
+    "dep:actix-web",
+    "dep:actix-web-flash-messages",
+    "dep:config",
+    "dep:csv",
+    "dep:dotenvy",
+    "dep:env_logger",
+    "dep:log",
+    "dep:tera",
+    "pushkind-common/actix",
+    "pushkind-common/zeromq",
+]
+
 [dependencies]
-chrono = { version = "0.4.43", features = ["serde"] }
+chrono = { version = "0.4.43", features = ["serde"], optional = true }
 diesel = { version = "2.3.6", features = [
     "sqlite",
     "r2d2",
     "chrono",
     "returning_clauses_for_sqlite_3_35",
-] }
-dotenvy = "0.15.7"
-env_logger = "0.11.9"
-log = "0.4.29"
-actix-web = "4.12.1"
-tera = { version = "1.20.1", features = ["builtins"] }
-actix-session = { version = "0.11.0", features = ["cookie-session"] }
-actix-identity = "0.9.0"
-actix-web-flash-messages = { version = "0.5.0", features = ["cookies"] }
-serde = { version = "1.0.228", features = ["derive"] }
-thiserror = "2.0.18"
-pushkind-common = { git = "https://github.com/pushkindt/pushkind-common.git", branch = "main", features = [
-    "dantes",
-    "zeromq",
-    "actix",
-] }
-validator = { version = "0.20.0", features = ["derive"] }
-actix-files = "0.6.10"
-csv = "1.4.0"
-actix-multipart = "0.7.2"
-config = { version = "0.15.19", default-features = false, features = ["yaml"] }
+], optional = true }
+dotenvy = { version = "0.15.7", optional = true }
+env_logger = { version = "0.11.9", optional = true }
+log = { version = "0.4.29", optional = true }
+actix-web = { version = "4.13.0", optional = true }
+tera = { version = "1.20.1", features = ["builtins"], optional = true }
+actix-session = { version = "0.11.0", features = [
+    "cookie-session",
+], optional = true }
+actix-identity = { version = "0.9.0", optional = true }
+actix-web-flash-messages = { version = "0.5.0", features = [
+    "cookies",
+], optional = true }
+serde = { version = "1.0.228", features = ["derive"], optional = true }
+thiserror = { version = "2.0.18", optional = true }
+pushkind-common = { git = "https://github.com/pushkindt/pushkind-common.git", branch = "main", optional = true }
+validator = { version = "0.20.0", features = ["derive"], optional = true }
+actix-files = { version = "0.6.10", optional = true }
+csv = { version = "1.4.0", optional = true }
+actix-multipart = { version = "0.7.2", optional = true }
+config = { version = "0.15.19", default-features = false, features = [
+    "yaml",
+], optional = true }
 
 
 [dev-dependencies]

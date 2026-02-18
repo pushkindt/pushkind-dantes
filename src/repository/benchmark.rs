@@ -1,15 +1,13 @@
 use diesel::prelude::*;
-use pushkind_common::domain::dantes::benchmark::{Benchmark, NewBenchmark};
-use pushkind_common::models::dantes::benchmark::{
-    Benchmark as DbBenchmark, NewBenchmark as DbNewBenchmark,
-};
 use pushkind_common::repository::errors::RepositoryResult;
 
+use crate::domain::benchmark::{Benchmark, NewBenchmark};
+use crate::models::benchmark::{Benchmark as DbBenchmark, NewBenchmark as DbNewBenchmark};
 use crate::repository::{BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, DieselRepository};
 
 impl BenchmarkReader for DieselRepository {
     fn get_benchmark_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Benchmark>> {
-        use pushkind_common::schema::dantes::benchmarks;
+        use crate::schema::benchmarks;
 
         let mut conn = self.conn()?;
 
@@ -26,7 +24,7 @@ impl BenchmarkReader for DieselRepository {
         &self,
         query: BenchmarkListQuery,
     ) -> RepositoryResult<(usize, Vec<Benchmark>)> {
-        use pushkind_common::schema::dantes::benchmarks;
+        use crate::schema::benchmarks;
 
         let mut conn = self.conn()?;
 
@@ -60,7 +58,7 @@ impl BenchmarkReader for DieselRepository {
 }
 impl BenchmarkWriter for DieselRepository {
     fn create_benchmark(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::benchmarks;
+        use crate::schema::benchmarks;
 
         let mut conn = self.conn()?;
 
@@ -81,7 +79,7 @@ impl BenchmarkWriter for DieselRepository {
         benchmark_id: i32,
         product_id: i32,
     ) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::product_benchmark;
+        use crate::schema::product_benchmark;
 
         let mut conn = self.conn()?;
 
@@ -101,7 +99,7 @@ impl BenchmarkWriter for DieselRepository {
         product_id: i32,
         distance: f32,
     ) -> RepositoryResult<usize> {
-        use pushkind_common::schema::dantes::product_benchmark;
+        use crate::schema::product_benchmark;
 
         let mut conn = self.conn()?;
 

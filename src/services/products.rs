@@ -1,10 +1,9 @@
-use log::error;
 use pushkind_common::domain::auth::AuthenticatedUser;
-use pushkind_common::domain::dantes::{crawler::Crawler, product::Product};
-use pushkind_common::models::dantes::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::check_role;
 
+use crate::domain::{crawler::Crawler, product::Product};
+use crate::models::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
 
 use super::errors::{ServiceError, ServiceResult};
@@ -32,7 +31,7 @@ where
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get crawler: {e}");
+            log::error!("Failed to get crawler: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -46,7 +45,7 @@ where
             Paginated::new(products, page, total.div_ceil(DEFAULT_ITEMS_PER_PAGE))
         }
         Err(e) => {
-            error!("Failed to list products: {e}");
+            log::error!("Failed to list products: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -78,7 +77,7 @@ where
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get crawler by id: {e}");
+            log::error!("Failed to get crawler by id: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -87,7 +86,7 @@ where
     match send(&message).await {
         Ok(_) => Ok(true),
         Err(_) => {
-            error!("Failed to send ZMQ message");
+            log::error!("Failed to send ZMQ message");
             Ok(false)
         }
     }
@@ -118,7 +117,7 @@ where
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
-            error!("Failed to get crawler by id: {e}");
+            log::error!("Failed to get crawler by id: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -126,7 +125,7 @@ where
     let products = match repo.list_products(ProductListQuery::default().crawler(crawler_id)) {
         Ok((_total, products)) => products,
         Err(e) => {
-            error!("Failed to get products: {e}");
+            log::error!("Failed to get products: {e}");
             return Err(ServiceError::Internal);
         }
     };
@@ -139,7 +138,7 @@ where
     match send(&message).await {
         Ok(_) => Ok(true),
         Err(_) => {
-            error!("Failed to send ZMQ message");
+            log::error!("Failed to send ZMQ message");
             Ok(false)
         }
     }
