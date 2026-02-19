@@ -5,11 +5,15 @@ use pushkind_common::pagination::Pagination;
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::benchmark::{Benchmark, NewBenchmark};
+use crate::domain::category::{Category, NewCategory};
 use crate::domain::crawler::Crawler;
 use crate::domain::product::Product;
-use crate::domain::types::{BenchmarkId, CrawlerId, HubId, ProductId, SimilarityDistance};
+use crate::domain::types::{
+    BenchmarkId, CategoryId, CategoryName, CrawlerId, HubId, ProductId, SimilarityDistance,
+};
 
 pub mod benchmark;
+pub mod category;
 pub mod crawler;
 pub mod product;
 #[cfg(test)]
@@ -58,6 +62,28 @@ pub struct BenchmarkListQuery {
     pub hub_id: HubId,
     /// Pagination parameters.
     pub pagination: Option<Pagination>,
+}
+
+/// Query parameters for listing categories belonging to a hub.
+#[derive(Debug, Clone)]
+pub struct CategoryListQuery {
+    /// Hub identifier.
+    pub hub_id: HubId,
+    /// Pagination parameters.
+    pub pagination: Option<Pagination>,
+}
+
+impl CategoryListQuery {
+    pub fn new(hub_id: HubId) -> Self {
+        Self {
+            hub_id,
+            pagination: None,
+        }
+    }
+    pub fn paginate(mut self, page: usize, per_page: usize) -> Self {
+        self.pagination = Some(Pagination { page, per_page });
+        self
+    }
 }
 
 impl BenchmarkListQuery {
@@ -121,7 +147,45 @@ pub trait ProductReader {
     fn get_product_by_id(&self, id: ProductId) -> RepositoryResult<Option<Product>>;
 }
 
-pub trait ProductWriter {}
+pub trait ProductWriter {
+    /// Set a manual category assignment for a product.
+    fn set_product_category_manual(
+        &self,
+        product_id: ProductId,
+        category_id: CategoryId,
+    ) -> RepositoryResult<usize>;
+    /// Clear manual category assignment and mark source as automatic.
+    fn clear_product_category_manual(&self, product_id: ProductId) -> RepositoryResult<usize>;
+}
+
+/// Read-only operations for category entities.
+pub trait CategoryReader {
+    /// List categories using the supplied query options.
+    fn list_categories(&self, query: CategoryListQuery)
+    -> RepositoryResult<(usize, Vec<Category>)>;
+    /// Retrieve a category by its identifier and hub.
+    fn get_category_by_id(
+        &self,
+        id: CategoryId,
+        hub_id: HubId,
+    ) -> RepositoryResult<Option<Category>>;
+}
+
+/// Write operations for category entities.
+pub trait CategoryWriter {
+    /// Persist a new category.
+    fn create_category(&self, category: &NewCategory) -> RepositoryResult<usize>;
+    /// Update category name and embedding.
+    fn update_category(
+        &self,
+        id: CategoryId,
+        hub_id: HubId,
+        name: &CategoryName,
+        embedding: &[u8],
+    ) -> RepositoryResult<usize>;
+    /// Delete a category by id and hub.
+    fn delete_category(&self, id: CategoryId, hub_id: HubId) -> RepositoryResult<usize>;
+}
 
 /// Read-only operations for benchmark entities.
 pub trait BenchmarkReader {
