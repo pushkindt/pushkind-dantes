@@ -11,6 +11,11 @@
     <div class="col overflow-hidden">
         Описание
     </div>
+    {% if show_category_controls | default(value=false) %}
+        <div class="col overflow-hidden">
+            Управление категорией
+        </div>
+    {% endif %}
 </div>
 {% if show_distances %}
     <div class="row">
@@ -79,5 +84,32 @@
         <div class="col overflow-hidden text-truncate toggle-text-truncate">
             {{product.description}}
         </div>
+        {% if show_category_controls | default(value=false) %}
+            <div class="col overflow-hidden">
+                <form method="POST" action="/products/{{product.id}}/category" class="row g-1">
+                    <input type="hidden" name="product_id" value="{{product.id}}">
+                    <div class="col-8">
+                        <select class="form-select form-select-sm" name="category_id" required>
+                            <option value="" {% if not product.category_id %}selected{% endif %} disabled>Выберите категорию</option>
+                            {% for category in categories %}
+                                <option value="{{category.id}}" {% if product.category_id == category.id %}selected{% endif %}>
+                                    {{category.name}}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">Назначить</button>
+                    </div>
+                </form>
+                <form method="POST" action="/products/{{product.id}}/category/clear" class="mt-1 d-inline">
+                    <input type="hidden" name="product_id" value="{{product.id}}">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Сбросить</button>
+                </form>
+                <span class="badge text-bg-light border ms-1">
+                    {{ product.category_assignment_source }}
+                </span>
+            </div>
+        {% endif %}
     </div>
 {% endfor %}

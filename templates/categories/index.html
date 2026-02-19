@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    {% include 'components/navigation.html' %}
+
+    <div class="container my-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <form method="POST" action="/categories" class="row g-2">
+                    <div class="col">
+                        <label class="form-label mb-1">Новая категория</label>
+                        <input type="text" class="form-control" name="name" placeholder="Например: Tea/Green/Sencha" required>
+                    </div>
+                    <div class="col-auto d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary">Добавить</button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <form method="POST" action="/categories/match-products">
+                    <button type="submit" class="btn btn-outline-primary">
+                        Запустить матчинг по товарам
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="container bg-white border rounded my-2 p-3">
+        <div class="row fw-bold border-bottom pb-2 mb-2">
+            <div class="col">ID</div>
+            <div class="col-8">Название</div>
+            <div class="col-3 text-end">Действия</div>
+        </div>
+
+        {% if categories | length == 0 %}
+            <div class="text-secondary">Категорий пока нет.</div>
+        {% endif %}
+
+        {% for category in categories %}
+            <div class="row py-2 border-bottom align-items-center">
+                <div class="col">{{ category.id }}</div>
+                <div class="col-8">
+                    <form method="POST" action="/categories/{{ category.id }}/update" class="row g-2">
+                        <input type="hidden" name="category_id" value="{{ category.id }}">
+                        <div class="col">
+                            <input type="text" class="form-control form-control-sm" name="name" value="{{ category.name }}" required>
+                        </div>
+                        <div class="col-auto">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Сохранить</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-3 text-end">
+                    <form method="POST" action="/categories/{{ category.id }}/delete" class="d-inline">
+                        <input type="hidden" name="category_id" value="{{ category.id }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Удалить категорию?')">
+                            Удалить
+                        </button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

@@ -5,7 +5,10 @@ use diesel::sql_types::{BigInt, Integer, Text};
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::product::Product;
-use crate::domain::types::{BenchmarkId, ImageUrl, ProductId, SimilarityDistance};
+use crate::domain::types::{
+    BenchmarkId, CategoryAssignmentSource, CategoryId, CategoryName, ImageUrl, ProductId,
+    SimilarityDistance,
+};
 use crate::models::product::Product as DbProduct;
 use crate::repository::{DieselRepository, ProductListQuery, ProductReader, ProductWriter};
 
@@ -14,6 +17,41 @@ use crate::repository::{DieselRepository, ProductListQuery, ProductReader, Produ
 struct ProductCount {
     #[diesel(sql_type = diesel::sql_types::BigInt)]
     count: i64,
+}
+
+fn hydrate_canonical_categories(
+    conn: &mut diesel::sqlite::SqliteConnection,
+    products: &mut [Product],
+) -> RepositoryResult<()> {
+    use crate::schema::categories;
+
+    let category_ids: Vec<i32> = products
+        .iter()
+        .filter_map(|product| product.category_id.map(|id| id.get()))
+        .collect();
+
+    if category_ids.is_empty() {
+        return Ok(());
+    }
+
+    let category_rows = categories::table
+        .filter(categories::id.eq_any(&category_ids))
+        .select((categories::id, categories::name))
+        .load::<(i32, String)>(conn)?;
+
+    let names = category_rows.into_iter().collect::<HashMap<i32, String>>();
+
+    for product in products {
+        let Some(category_id) = product.category_id else {
+            continue;
+        };
+        let Some(name) = names.get(&category_id.get()) else {
+            continue;
+        };
+        product.category = Some(CategoryName::new(name.clone())?);
+    }
+
+    Ok(())
 }
 
 impl ProductReader for DieselRepository {
@@ -42,6 +80,8 @@ impl ProductReader for DieselRepository {
             .into_iter()
             .map(ImageUrl::new)
             .collect::<Result<Vec<ImageUrl>, _>>()?;
+
+        hydrate_canonical_categories(&mut conn, std::slice::from_mut(&mut product))?;
 
         Ok(Some(product))
     }
@@ -124,6 +164,8 @@ impl ProductReader for DieselRepository {
             .into_iter()
             .map(TryInto::try_into)
             .collect::<Result<Vec<Product>, _>>()?;
+
+        hydrate_canonical_categories(&mut conn, &mut items)?;
 
         if !items.is_empty() {
             let product_ids: Vec<i32> = items.iter().map(|product| product.id.get()).collect();
@@ -248,8 +290,46 @@ impl ProductReader for DieselRepository {
             .map(TryInto::try_into)
             .collect::<Result<Vec<Product>, _>>()?;
 
+        let mut items = items;
+        hydrate_canonical_categories(&mut conn, &mut items)?;
+
         let total = total_query.get_result::<ProductCount>(&mut conn)?.count as usize;
         Ok((total, items))
     }
 }
-impl ProductWriter for DieselRepository {}
+impl ProductWriter for DieselRepository {
+    fn set_product_category_manual(
+        &self,
+        product_id: ProductId,
+        category_id: CategoryId,
+    ) -> RepositoryResult<usize> {
+        use crate::schema::products;
+
+        let mut conn = self.conn()?;
+
+        let affected = diesel::update(products::table.filter(products::id.eq(product_id.get())))
+            .set((
+                products::category_id.eq(Some(category_id.get())),
+                products::category_assignment_source.eq(CategoryAssignmentSource::Manual.as_str()),
+            ))
+            .execute(&mut conn)?;
+
+        Ok(affected)
+    }
+
+    fn clear_product_category_manual(&self, product_id: ProductId) -> RepositoryResult<usize> {
+        use crate::schema::products;
+
+        let mut conn = self.conn()?;
+
+        let affected = diesel::update(products::table.filter(products::id.eq(product_id.get())))
+            .set((
+                products::category_id.eq::<Option<i32>>(None),
+                products::category_assignment_source
+                    .eq(CategoryAssignmentSource::Automatic.as_str()),
+            ))
+            .execute(&mut conn)?;
+
+        Ok(affected)
+    }
+}

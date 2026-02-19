@@ -26,6 +26,7 @@ The app is server-rendered (Actix + Tera) with one JSON search endpoint used by 
 
 Hub scoping rules:
 - Crawler and benchmark reads are filtered by `user.hub_id`.
+- Category directory reads/writes are filtered by `user.hub_id`.
 - Product records are validated through their owning crawler when needed.
 
 ## 3. Architecture
@@ -128,6 +129,41 @@ Infra integrations:
   - strips `embedding` before JSON response.
 - Used by benchmark page selectize search dropdown (front-end limits shown results to first 20).
 
+### FR-13 Category Directory CRUD
+- `GET /categories` lists categories for the current hub.
+- `POST /categories` creates a category in the current hub.
+- `POST /categories/{category_id}/update` updates category name in the current hub.
+- `POST /categories/{category_id}/delete` deletes category in the current hub.
+- Validation:
+  - category name is required and non-empty,
+  - category path parts are split by `/`,
+  - each part is trimmed, must stay non-empty, and is re-joined with `/`.
+- Embedding behavior:
+  - category embedding is optional in storage,
+  - create/update flows in this service set embedding to `None`,
+  - embedding regeneration is handled asynchronously by `pushkind-crawlers`.
+
+### FR-14 Manual Product Category Override
+- Set manual assignment: `POST /products/{product_id}/category` (`product_id`, `category_id`).
+- Clear manual assignment: `POST /products/{product_id}/category/clear` (`product_id`).
+- Validation and ownership:
+  - product must exist and belong to a crawler in current hub,
+  - target category must exist in current hub for set operation.
+- Behavior:
+  - set writes `products.category_id` and sets `products.category_assignment_source = manual`,
+  - clear removes `products.category_id` and sets `products.category_assignment_source = automatic`.
+
+### FR-15 Trigger Product-to-Category Matching Job
+- `POST /categories/match-products`:
+  - verifies role,
+  - enqueues ZeroMQ message `ProductCategoryMatch(hub_id)` for `pushkind-crawlers`.
+- Worker-side contract:
+  - automatic matching must not overwrite products with `category_assignment_source = manual`.
+
+### FR-16 Canonical Category Display Precedence
+- Product listing views use canonical category name from `categories.name` when `products.category_id` is set.
+- Existing raw `products.category` text remains stored and available for compatibility and downstream embedding inputs.
+
 ## 5. HTTP Surface
 
 ### HTML Routes
@@ -143,6 +179,13 @@ Infra integrations:
 - `POST /benchmark/{benchmark_id}/update` -> queue price updates.
 - `POST /benchmark/associate` -> manual match.
 - `POST /benchmark/unassociate` -> remove match.
+- `GET /categories` -> category directory page.
+- `POST /categories` -> add category.
+- `POST /categories/{category_id}/update` -> update category.
+- `POST /categories/{category_id}/delete` -> delete category.
+- `POST /products/{product_id}/category` -> set manual product category.
+- `POST /products/{product_id}/category/clear` -> clear manual product category.
+- `POST /categories/match-products` -> queue product-to-category matching for hub.
 
 ### JSON API
 - `GET /api/v1/products` -> product list/search JSON.
@@ -158,9 +201,11 @@ Core tables:
 - `crawlers`:
   - `id`, `hub_id`, `name`, `url`, `selector`, `processing`, `updated_at`, `num_products`.
 - `products`:
-  - `id`, `crawler_id`, `name`, `sku`, optional `category`, optional `units`, `price`, optional `amount`, optional `description`, `url`, timestamps, optional `embedding` blob.
+  - `id`, `crawler_id`, `name`, `sku`, optional `category` (raw crawler text kept for compatibility and embedding input), optional `units`, `price`, optional `amount`, optional `description`, `url`, timestamps, optional `embedding` blob, optional `category_id`, `category_assignment_source`.
 - `benchmarks`:
   - `id`, `hub_id`, `name`, `sku`, `category`, `units`, `price`, `amount`, `description`, timestamps, optional `embedding`, `processing`, `num_products`.
+- `categories`:
+  - `id`, `hub_id`, `name`, optional `embedding`, timestamps.
 - `product_benchmark` (many-to-many join):
   - composite PK (`product_id`, `benchmark_id`), `distance` float.
 - `product_images`:
@@ -170,6 +215,8 @@ Search/indexing:
 - SQLite FTS5 virtual table `products_fts` over product text columns.
 - Triggers keep FTS table synced on insert/update/delete.
 - Unique index on `(products.crawler_id, products.url)`.
+- Case-insensitive unique index on `(categories.hub_id, lower(categories.name))`.
+- `products.category_id` has FK relation to `categories.id`.
 
 Seed data in migrations:
 - Initial crawler records are inserted for hub `1` (selectors: `101tea`, `rusteaco`, `gutenberg`).
@@ -179,6 +226,7 @@ Seed data in migrations:
 Strongly typed wrappers enforce invariants:
 - IDs (`HubId`, `CrawlerId`, `ProductId`, `BenchmarkId`) > 0.
 - Text wrappers (`ProductName`, `BenchmarkSku`, etc.) are trimmed and non-empty.
+- Category path normalization trims each slash-separated path segment and rejects empty segments.
 - URL wrappers (`CrawlerUrl`, `ProductUrl`, `ImageUrl`) must pass URL validation.
 - `ProductPrice`, `ProductAmount` must be positive finite numbers.
 - `ProductCount` must be >= 0.
@@ -191,12 +239,15 @@ Message enum (`ZMQCrawlerMessage`):
   - `Selector(crawler_selector)`, or
   - `SelectorProducts((crawler_selector, Vec<ProductUrl>))`.
 - `Benchmark(benchmark_id)`.
+- `ProductCategoryMatch(hub_id)`.
 
 Emission points:
 - Crawl crawler: `Selector`.
 - Update crawler prices: `SelectorProducts` with crawler product URLs.
 - Match benchmark: `Benchmark`.
 - Update benchmark prices: one `SelectorProducts` per crawler that has matched products.
+- Match products to categories for hub: `ProductCategoryMatch`.
+- Worker rule for category matching: do not overwrite records with manual assignment source.
 
 ## 9. Configuration and Runtime
 
@@ -230,6 +281,8 @@ Server middleware/features:
 - Tables support client-side sorting.
 - Product description text can toggle truncation on click.
 - Benchmark detail page uses selectize + `/api/v1/products` to add manual associations.
+- Categories page provides category CRUD and a trigger button for bulk product-category matching.
+- Product rows can be manually assigned/cleared against category directory entries and display assignment source badge.
 - This section is descriptive, not contractual: route semantics are stable, while UI markup/text/layout may change without API contract changes.
 
 ## 11. Error Handling Contract
@@ -253,13 +306,13 @@ Repository guidance in this repo expects running:
 
 Current automated coverage shape:
 - service unit tests inline in service modules,
-- form conversion/validation tests in `src/forms/benchmarks.rs`,
+- form conversion/validation tests in `src/forms/benchmarks.rs` and `src/forms/categories.rs`,
 - in-memory mock repository for service tests (`src/repository/test.rs`),
 - basic integration tests for DB bootstrap and repository wiring (`tests/`).
 
 ## 13. Current Limitations / Gaps (As Implemented)
 
-- `src/dto/` exists but is currently empty and not used by handlers/services.
+- DTO usage is minimal and currently limited to category page transport mapping (`CategoryDto`).
 - Product search in UI is only exposed via benchmark association workflow (`/api/v1/products`), not crawler page filtering.
 - Benchmark detail always loads page 1 of associated products per crawler in service logic.
 - Some migration `down.sql` statements use SQLite-incompatible `DROP COLUMN` syntax; rollback paths may require manual adjustment.

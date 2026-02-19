@@ -57,6 +57,12 @@ Optional aggregate check:
 make check
 ```
 
+**Diesel Migrations**
+```bash
+diesel migration generate <migration-name> # for creating a new migration
+diesel migration run # applies migrations and regenerates src/schema.rs
+```
+
 ## Coding Standards
 
 - Use idiomatic Rust; avoid `unwrap`/`expect` in production paths.
@@ -120,3 +126,11 @@ make check
 - Update `SPEC.md` when behavior, contracts, routes, or data semantics change.
 - Keep `README.md` concise; avoid duplicating detailed content that belongs in
   `SPEC.md` or this file.
+
+## Workflow Requirements
+
+- Always obey `SPEC.md`.
+- For any new work, require both `specs/features/<name>.md` and
+  `plans/<name>.md`.
+- If a change touches architecture, add or update an ADR under
+  `specs/decisions/`.

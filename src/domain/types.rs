@@ -464,6 +464,11 @@ id_newtype!(HubId, "Unique identifier for a hub.", "hub_id");
 id_newtype!(CrawlerId, "Unique identifier for a crawler.", "crawler_id");
 id_newtype!(ProductId, "Unique identifier for a product.", "product_id");
 id_newtype!(
+    CategoryId,
+    "Unique identifier for a category.",
+    "category_id"
+);
+id_newtype!(
     BenchmarkId,
     "Unique identifier for a benchmark.",
     "benchmark_id"
@@ -531,6 +536,58 @@ non_negative_i32_newtype!(
     "Number of products associated with an entity.",
     "product count"
 );
+
+/// Source of a product's canonical category assignment.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum CategoryAssignmentSource {
+    Automatic,
+    Manual,
+}
+
+impl CategoryAssignmentSource {
+    /// String representation used in persistence.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Automatic => "automatic",
+            Self::Manual => "manual",
+        }
+    }
+}
+
+impl Display for CategoryAssignmentSource {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl TryFrom<&str> for CategoryAssignmentSource {
+    type Error = TypeConstraintError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.trim() {
+            "automatic" => Ok(Self::Automatic),
+            "manual" => Ok(Self::Manual),
+            other => Err(TypeConstraintError::InvalidValue(format!(
+                "category assignment source: {other}"
+            ))),
+        }
+    }
+}
+
+impl TryFrom<String> for CategoryAssignmentSource {
+    type Error = TypeConstraintError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
+}
+
+impl From<CategoryAssignmentSource> for String {
+    fn from(value: CategoryAssignmentSource) -> Self {
+        value.as_str().to_string()
+    }
+}
 
 /// Similarity distance between benchmark and product in the inclusive range [0.0, 1.0].
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]

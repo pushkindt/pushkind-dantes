@@ -3,8 +3,8 @@ use diesel::prelude::*;
 
 use crate::domain::product::{NewProduct as DomainNewProduct, Product as DomainProduct};
 use crate::domain::types::{
-    CategoryName, ProductAmount, ProductDescription, ProductName, ProductPrice, ProductSku,
-    ProductUnits, ProductUrl, TypeConstraintError,
+    CategoryAssignmentSource, CategoryId, CategoryName, ProductAmount, ProductDescription,
+    ProductName, ProductPrice, ProductSku, ProductUnits, ProductUrl, TypeConstraintError,
 };
 
 /// Diesel model representing the `products` table.
@@ -25,6 +25,8 @@ pub struct Product {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub embedding: Option<Vec<u8>>,
+    pub category_id: Option<i32>,
+    pub category_assignment_source: String,
 }
 
 /// Insertable/patchable form of [`Product`].
@@ -63,6 +65,10 @@ impl TryFrom<Product> for DomainProduct {
             created_at: product.created_at,
             updated_at: product.updated_at,
             embedding: product.embedding,
+            category_id: product.category_id.map(CategoryId::new).transpose()?,
+            category_assignment_source: CategoryAssignmentSource::try_from(
+                product.category_assignment_source,
+            )?,
             images: vec![],
         })
     }

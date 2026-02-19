@@ -2,8 +2,8 @@ use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::types::{
-    CategoryName, CrawlerId, ImageUrl, ProductAmount, ProductDescription, ProductId, ProductName,
-    ProductPrice, ProductSku, ProductUnits, ProductUrl,
+    CategoryAssignmentSource, CategoryId, CategoryName, CrawlerId, ImageUrl, ProductAmount,
+    ProductDescription, ProductId, ProductName, ProductPrice, ProductSku, ProductUnits, ProductUrl,
 };
 
 /// A product extracted from a crawler run.
@@ -22,6 +22,8 @@ pub struct Product {
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub embedding: Option<Vec<u8>>,
+    pub category_id: Option<CategoryId>,
+    pub category_assignment_source: CategoryAssignmentSource,
     pub images: Vec<ImageUrl>,
 }
 

@@ -42,6 +42,11 @@ use crate::routes::benchmarks::{
     show_benchmark, show_benchmarks, update_benchmark_prices, upload_benchmarks,
 };
 #[cfg(feature = "server")]
+use crate::routes::categories::{
+    add_category, clear_product_category_manual, delete_category, match_product_categories,
+    set_product_category_manual, show_categories, update_category,
+};
+#[cfg(feature = "server")]
 use crate::routes::main::index;
 #[cfg(feature = "server")]
 use crate::routes::products::{crawl_crawler, show_products, update_crawler_prices};
@@ -131,6 +136,13 @@ pub async fn run(server_config: ServerConfig) -> std::io::Result<()> {
                     .service(delete_benchmark_product)
                     .service(create_benchmark_product)
                     .service(show_products)
+                    .service(show_categories)
+                    .service(add_category)
+                    .service(update_category)
+                    .service(delete_category)
+                    .service(set_product_category_manual)
+                    .service(clear_product_category_manual)
+                    .service(match_product_categories)
                     .service(logout),
             )
             .app_data(web::Data::new(tera.clone()))

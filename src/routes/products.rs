@@ -11,6 +11,7 @@ use tera::Tera;
 
 use crate::repository::DieselRepository;
 use crate::services::ServiceError;
+use crate::services::categories::show_categories as show_categories_service;
 use crate::services::products::{
     crawl_crawler as crawl_crawler_service, show_products as show_products_service,
     update_crawler_prices as update_crawler_prices_service,
@@ -35,6 +36,19 @@ pub async fn show_products(
     let crawler_id = crawler_id.into_inner();
     match show_products_service(crawler_id, page, &user, repo.get_ref()) {
         Ok((crawler, products)) => {
+            let categories = match show_categories_service(&user, repo.get_ref()) {
+                Ok(categories) => categories,
+                Err(ServiceError::Unauthorized) => return redirect("/na"),
+                Err(ServiceError::NotFound) => vec![],
+                Err(ServiceError::Form(message)) => {
+                    FlashMessage::error(message).send();
+                    vec![]
+                }
+                Err(err) => {
+                    log::error!("Failed to load categories for products page: {err}");
+                    vec![]
+                }
+            };
             let mut context = base_context(
                 &flash_messages,
                 &user,
@@ -43,6 +57,8 @@ pub async fn show_products(
             );
             context.insert("products", &products);
             context.insert("crawler", &crawler);
+            context.insert("categories", &categories);
+            context.insert("show_category_controls", &true);
             render_template(&tera, "products/index.html", &context)
         }
         Err(ServiceError::Unauthorized) => redirect("/na"),
