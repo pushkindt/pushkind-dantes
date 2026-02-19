@@ -2,6 +2,10 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
 use crate::domain::product::{NewProduct as DomainNewProduct, Product as DomainProduct};
+use crate::domain::types::{
+    CategoryName, ProductAmount, ProductDescription, ProductName, ProductPrice, ProductSku,
+    ProductUnits, ProductUrl, TypeConstraintError,
+};
 
 /// Diesel model representing the `products` table.
 #[derive(Debug, Clone, Identifiable, Queryable, QueryableByName)]
@@ -38,39 +42,44 @@ pub struct NewProduct {
     pub url: String,
 }
 
-impl From<Product> for DomainProduct {
-    fn from(product: Product) -> Self {
-        Self {
-            id: product.id,
-            crawler_id: product.crawler_id,
-            name: product.name,
-            sku: product.sku,
-            category: product.category,
-            units: product.units,
-            price: product.price,
-            amount: product.amount,
-            description: product.description,
-            url: product.url,
+impl TryFrom<Product> for DomainProduct {
+    type Error = TypeConstraintError;
+
+    fn try_from(product: Product) -> Result<Self, Self::Error> {
+        Ok(Self {
+            id: product.id.try_into()?,
+            crawler_id: product.crawler_id.try_into()?,
+            name: ProductName::new(product.name)?,
+            sku: ProductSku::new(product.sku)?,
+            category: product.category.map(CategoryName::new).transpose()?,
+            units: product.units.map(ProductUnits::new).transpose()?,
+            price: ProductPrice::new(product.price)?,
+            amount: product.amount.map(ProductAmount::new).transpose()?,
+            description: product
+                .description
+                .map(ProductDescription::new)
+                .transpose()?,
+            url: ProductUrl::new(product.url)?,
             created_at: product.created_at,
             updated_at: product.updated_at,
             embedding: product.embedding,
             images: vec![],
-        }
+        })
     }
 }
 
 impl From<DomainNewProduct> for NewProduct {
     fn from(product: DomainNewProduct) -> Self {
         Self {
-            crawler_id: product.crawler_id,
-            name: product.name,
-            sku: product.sku,
-            category: product.category,
-            units: product.units,
-            price: product.price,
-            amount: product.amount,
-            description: product.description,
-            url: product.url,
+            crawler_id: product.crawler_id.get(),
+            name: product.name.into_inner(),
+            sku: product.sku.into_inner(),
+            category: product.category.map(Into::into),
+            units: product.units.map(Into::into),
+            price: product.price.get(),
+            amount: product.amount.map(ProductAmount::get),
+            description: product.description.map(Into::into),
+            url: product.url.into_inner(),
         }
     }
 }

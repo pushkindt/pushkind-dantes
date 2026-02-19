@@ -6,7 +6,7 @@ use pushkind_common::routes::{base_context, redirect, render_template};
 use tera::Tera;
 
 use crate::repository::DieselRepository;
-use crate::services::errors::ServiceError;
+use crate::services::ServiceError;
 use crate::services::main::show_index as show_index_service;
 
 #[get("/")]
@@ -17,7 +17,7 @@ pub async fn index(
     server_config: web::Data<CommonServerConfig>,
     tera: web::Data<Tera>,
 ) -> impl Responder {
-    match show_index_service(repo.get_ref(), &user) {
+    match show_index_service(&user, repo.get_ref()) {
         Ok(crawlers) => {
             let mut context = base_context(
                 &flash_messages,
@@ -32,6 +32,9 @@ pub async fn index(
         }
         Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
-        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
+        Err(err) => {
+            log::error!("Failed to render index page: {err}");
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }

@@ -18,61 +18,22 @@ pub struct TestRepository {
 impl TestRepository {
     pub fn new(crawlers: Vec<Crawler>, products: Vec<Product>, benchmarks: Vec<Benchmark>) -> Self {
         Self {
-            crawlers: crawlers.into_iter().map(|c| (c.id, c)).collect(),
+            crawlers: crawlers.into_iter().map(|c| (c.id.get(), c)).collect(),
             products,
             benchmarks,
         }
     }
 
     fn clone_crawler(c: &Crawler) -> Crawler {
-        Crawler {
-            id: c.id,
-            hub_id: c.hub_id,
-            name: c.name.clone(),
-            url: c.url.clone(),
-            selector: c.selector.clone(),
-            processing: c.processing,
-            updated_at: c.updated_at,
-            num_products: c.num_products,
-        }
+        c.clone()
     }
 
     fn clone_product(p: &Product) -> Product {
-        Product {
-            id: p.id,
-            crawler_id: p.crawler_id,
-            name: p.name.clone(),
-            sku: p.sku.clone(),
-            category: p.category.clone(),
-            units: p.units.clone(),
-            price: p.price,
-            amount: p.amount,
-            description: p.description.clone(),
-            url: p.url.clone(),
-            created_at: p.created_at,
-            updated_at: p.updated_at,
-            embedding: p.embedding.clone(),
-            images: vec![],
-        }
+        p.clone()
     }
 
     fn clone_benchmark(b: &Benchmark) -> Benchmark {
-        Benchmark {
-            id: b.id,
-            hub_id: b.hub_id,
-            name: b.name.clone(),
-            sku: b.sku.clone(),
-            category: b.category.clone(),
-            units: b.units.clone(),
-            price: b.price,
-            amount: b.amount,
-            description: b.description.clone(),
-            created_at: b.created_at,
-            updated_at: b.updated_at,
-            embedding: b.embedding.clone(),
-            processing: b.processing,
-            num_products: b.num_products,
-        }
+        b.clone()
     }
 }
 

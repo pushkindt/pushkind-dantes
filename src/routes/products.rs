@@ -5,12 +5,12 @@ use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::{base_context, redirect, render_template};
-use pushkind_common::zmq::{ZmqSender, ZmqSenderExt};
+use pushkind_common::zmq::ZmqSender;
 use serde::Deserialize;
 use tera::Tera;
 
 use crate::repository::DieselRepository;
-use crate::services::errors::ServiceError;
+use crate::services::ServiceError;
 use crate::services::products::{
     crawl_crawler as crawl_crawler_service, show_products as show_products_service,
     update_crawler_prices as update_crawler_prices_service,
@@ -32,7 +32,7 @@ pub async fn show_products(
     tera: web::Data<Tera>,
 ) -> impl Responder {
     let page = params.page.unwrap_or(1);
-    match show_products_service(repo.get_ref(), &user, crawler_id.into_inner(), page) {
+    match show_products_service(crawler_id.into_inner(), page, &user, repo.get_ref()) {
         Ok((crawler, products)) => {
             let mut context = base_context(
                 &flash_messages,
@@ -49,7 +49,10 @@ pub async fn show_products(
             FlashMessage::error("Парсер не существует").send();
             redirect("/")
         }
-        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
+        Err(err) => {
+            log::error!("Failed to render crawler products: {err}");
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }
 
@@ -61,10 +64,10 @@ pub async fn crawl_crawler(
     zmq_sender: web::Data<Arc<ZmqSender>>,
 ) -> impl Responder {
     match crawl_crawler_service(
-        repo.get_ref(),
-        &user,
         crawler_id.into_inner(),
-        async |msg| zmq_sender.send_json(msg).await.map_err(|_| ()),
+        &user,
+        repo.get_ref(),
+        zmq_sender.get_ref().as_ref(),
     )
     .await
     {
@@ -81,7 +84,10 @@ pub async fn crawl_crawler(
             FlashMessage::error("Парсер не существует").send();
             redirect("/")
         }
-        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
+        Err(err) => {
+            log::error!("Failed to start crawler crawl: {err}");
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }
 
@@ -93,10 +99,10 @@ pub async fn update_crawler_prices(
     zmq_sender: web::Data<Arc<ZmqSender>>,
 ) -> impl Responder {
     match update_crawler_prices_service(
-        repo.get_ref(),
-        &user,
         crawler_id.into_inner(),
-        async |msg| zmq_sender.send_json(msg).await.map_err(|_| ()),
+        &user,
+        repo.get_ref(),
+        zmq_sender.get_ref().as_ref(),
     )
     .await
     {
@@ -113,6 +119,9 @@ pub async fn update_crawler_prices(
             FlashMessage::error("Парсер не существует").send();
             redirect("/")
         }
-        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
+        Err(err) => {
+            log::error!("Failed to update crawler prices: {err}");
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }

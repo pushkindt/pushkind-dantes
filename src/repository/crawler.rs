@@ -16,10 +16,11 @@ impl CrawlerReader for DieselRepository {
             .order(crawlers::id.asc())
             .get_results::<DbCrawler>(&mut conn)?;
 
-        Ok(results
+        let results = results
             .into_iter()
-            .map(|db_crawler| db_crawler.into())
-            .collect()) // Convert DbCrawler to DomainCrawler
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<Crawler>, _>>()?;
+        Ok(results)
     }
 
     fn get_crawler_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Crawler>> {
@@ -33,6 +34,7 @@ impl CrawlerReader for DieselRepository {
             .first::<DbCrawler>(&mut conn)
             .optional()?;
 
-        Ok(result.map(|db_crawler| db_crawler.into())) // Convert DbCrawler to DomainCrawler
+        let result = result.map(TryInto::try_into).transpose()?;
+        Ok(result)
     }
 }

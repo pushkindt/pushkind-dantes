@@ -17,7 +17,8 @@ impl BenchmarkReader for DieselRepository {
             .first::<DbBenchmark>(&mut conn)
             .optional()?;
 
-        Ok(benchmark.map(Into::into))
+        let benchmark = benchmark.map(TryInto::try_into).transpose()?;
+        Ok(benchmark)
     }
 
     fn list_benchmarks(
@@ -50,8 +51,8 @@ impl BenchmarkReader for DieselRepository {
             .order(benchmarks::name.asc())
             .load::<DbBenchmark>(&mut conn)?
             .into_iter()
-            .map(Into::into)
-            .collect::<Vec<Benchmark>>();
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<Benchmark>, _>>()?;
 
         Ok((total, items))
     }

@@ -49,6 +49,8 @@ use crate::routes::products::{crawl_crawler, show_products, update_crawler_price
 #[cfg(feature = "data")]
 pub mod domain;
 #[cfg(feature = "server")]
+pub mod dto;
+#[cfg(feature = "server")]
 pub mod forms;
 #[cfg(feature = "data")]
 pub mod models;
@@ -60,6 +62,8 @@ pub mod routes;
 pub mod schema;
 #[cfg(feature = "server")]
 pub mod services;
+
+pub mod error_conversions;
 
 #[cfg(feature = "server")]
 pub const SERVICE_ACCESS_ROLE: &str = "parser";

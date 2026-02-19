@@ -2,8 +2,8 @@ use actix_web::{HttpResponse, Responder, get, web};
 use pushkind_common::domain::auth::AuthenticatedUser;
 
 use crate::repository::DieselRepository;
+use crate::services::ServiceError;
 use crate::services::api::{ApiV1ProductsQueryParams, api_v1_products as api_v1_products_service};
-use crate::services::errors::ServiceError;
 
 #[get("/v1/products")]
 pub async fn api_v1_products(
@@ -11,10 +11,13 @@ pub async fn api_v1_products(
     user: AuthenticatedUser,
     repo: web::Data<DieselRepository>,
 ) -> impl Responder {
-    match api_v1_products_service(repo.get_ref(), params.into_inner(), &user) {
+    match api_v1_products_service(params.into_inner(), &user, repo.get_ref()) {
         Ok(products) => HttpResponse::Ok().json(products),
         Err(ServiceError::Unauthorized) => HttpResponse::Unauthorized().finish(),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
-        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
+        Err(err) => {
+            log::error!("Failed to load products via API: {err}");
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }

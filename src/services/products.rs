@@ -1,12 +1,13 @@
 use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::check_role;
+use pushkind_common::zmq::ZmqSenderExt;
 
 use crate::domain::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::domain::{crawler::Crawler, product::Product};
 use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
 
-use super::errors::{ServiceError, ServiceResult};
+use super::{ServiceError, ServiceResult};
 
 /// Core business logic for rendering the products page.
 ///
@@ -15,10 +16,10 @@ use super::errors::{ServiceError, ServiceResult};
 /// Repository errors are converted into `ServiceError` variants so that the
 /// HTTP route can remain a thin wrapper.
 pub fn show_products<R>(
-    repo: &R,
-    user: &AuthenticatedUser,
     crawler_id: i32,
     page: usize,
+    user: &AuthenticatedUser,
+    repo: &R,
 ) -> ServiceResult<(Crawler, Paginated<Product>)>
 where
     R: CrawlerReader + ProductReader,
@@ -59,15 +60,15 @@ where
 /// and sends a ZMQ message to trigger crawling. Returns `Ok(true)` if the
 /// message was sent successfully, `Ok(false)` if sending failed, or an error if
 /// the crawler was not found or a repository error occurred.
-pub async fn crawl_crawler<R, F>(
-    repo: &R,
-    user: &AuthenticatedUser,
+pub async fn crawl_crawler<R, S>(
     crawler_id: i32,
-    send: F,
+    user: &AuthenticatedUser,
+    repo: &R,
+    sender: &S,
 ) -> ServiceResult<bool>
 where
     R: CrawlerReader,
-    F: AsyncFn(&ZMQCrawlerMessage) -> Result<(), ()>,
+    S: ZmqSenderExt + ?Sized,
 {
     if !check_role("parser", &user.roles) {
         return Err(ServiceError::Unauthorized);
@@ -83,7 +84,7 @@ where
     };
 
     let message = ZMQCrawlerMessage::Crawler(CrawlerSelector::Selector(crawler.selector));
-    match send(&message).await {
+    match sender.send_json(&message).await {
         Ok(_) => Ok(true),
         Err(_) => {
             log::error!("Failed to send ZMQ message");
@@ -99,15 +100,15 @@ where
 /// `Ok(true)` if the message was sent successfully, `Ok(false)` if sending
 /// failed, or an error if the crawler was not found or a repository error
 /// occurred.
-pub async fn update_crawler_prices<R, F>(
-    repo: &R,
-    user: &AuthenticatedUser,
+pub async fn update_crawler_prices<R, S>(
     crawler_id: i32,
-    send: F,
+    user: &AuthenticatedUser,
+    repo: &R,
+    sender: &S,
 ) -> ServiceResult<bool>
 where
     R: CrawlerReader + ProductReader,
-    F: AsyncFn(&ZMQCrawlerMessage) -> Result<(), ()>,
+    S: ZmqSenderExt + ?Sized,
 {
     if !check_role("parser", &user.roles) {
         return Err(ServiceError::Unauthorized);
@@ -135,7 +136,7 @@ where
         products.into_iter().map(|p| p.url).collect(),
     )));
 
-    match send(&message).await {
+    match sender.send_json(&message).await {
         Ok(_) => Ok(true),
         Err(_) => {
             log::error!("Failed to send ZMQ message");
@@ -147,6 +148,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::types::{
+        CategoryName, CrawlerId, CrawlerName, CrawlerSelectorValue, CrawlerUrl, HubId,
+        ProductCount, ProductId, ProductName, ProductPrice, ProductSku, ProductUnits, ProductUrl,
+    };
     use crate::repository::test::TestRepository;
     use chrono::DateTime;
     use pushkind_common::domain::auth::AuthenticatedUser;
@@ -165,29 +170,29 @@ mod tests {
 
     fn sample_crawler() -> Crawler {
         Crawler {
-            id: 1,
-            hub_id: 1,
-            name: "crawler".into(),
-            url: "http://example.com".into(),
-            selector: "body".into(),
+            id: CrawlerId::new(1).unwrap(),
+            hub_id: HubId::new(1).unwrap(),
+            name: CrawlerName::new("crawler").unwrap(),
+            url: CrawlerUrl::new("http://example.com").unwrap(),
+            selector: CrawlerSelectorValue::new("body").unwrap(),
             processing: false,
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
-            num_products: 0,
+            num_products: ProductCount::new(0).unwrap(),
         }
     }
 
     fn sample_product() -> Product {
         Product {
-            id: 1,
-            crawler_id: 1,
-            name: "product".into(),
-            sku: "SKU1".into(),
-            category: Some("category".into()),
-            units: Some("pcs".into()),
-            price: 1.0,
+            id: ProductId::new(1).unwrap(),
+            crawler_id: CrawlerId::new(1).unwrap(),
+            name: ProductName::new("product").unwrap(),
+            sku: ProductSku::new("SKU1").unwrap(),
+            category: Some(CategoryName::new("category").unwrap()),
+            units: Some(ProductUnits::new("pcs").unwrap()),
+            price: ProductPrice::new(1.0).unwrap(),
             amount: None,
             description: None,
-            url: "http://example.com".into(),
+            url: ProductUrl::new("http://example.com").unwrap(),
             created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: None,
@@ -200,7 +205,7 @@ mod tests {
         let repo = TestRepository::new(vec![sample_crawler()], vec![sample_product()], vec![]);
         let user = sample_user();
 
-        let (crawler, paginated) = show_products(&repo, &user, 1, 1).unwrap();
+        let (crawler, paginated) = show_products(1, 1, &user, &repo).unwrap();
 
         assert_eq!(crawler.id, 1);
         let value: Value = serde_json::to_value(&paginated).unwrap();

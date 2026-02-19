@@ -4,7 +4,7 @@ use pushkind_common::routes::check_role;
 use crate::domain::crawler::Crawler;
 use crate::repository::CrawlerReader;
 
-use super::errors::{ServiceError, ServiceResult};
+use super::{ServiceError, ServiceResult};
 
 /// Core business logic for rendering the index page.
 ///
@@ -12,7 +12,7 @@ use super::errors::{ServiceError, ServiceResult};
 /// all crawlers associated with the user's hub. Any repository errors are
 /// translated into `ServiceError` so that the HTTP route can remain a thin
 /// wrapper.
-pub fn show_index<R>(repo: &R, user: &AuthenticatedUser) -> ServiceResult<Vec<Crawler>>
+pub fn show_index<R>(user: &AuthenticatedUser, repo: &R) -> ServiceResult<Vec<Crawler>>
 where
     R: CrawlerReader,
 {
@@ -33,6 +33,9 @@ where
 mod tests {
     use super::*;
     use crate::domain::crawler::Crawler;
+    use crate::domain::types::{
+        CrawlerId, CrawlerName, CrawlerSelectorValue, CrawlerUrl, HubId, ProductCount,
+    };
     use crate::repository::test::TestRepository;
     use chrono::DateTime;
 
@@ -49,14 +52,14 @@ mod tests {
 
     fn sample_crawler() -> Crawler {
         Crawler {
-            id: 1,
-            hub_id: 1,
-            name: "crawler".into(),
-            url: "http://example.com".into(),
-            selector: "body".into(),
+            id: CrawlerId::new(1).unwrap(),
+            hub_id: HubId::new(1).unwrap(),
+            name: CrawlerName::new("crawler").unwrap(),
+            url: CrawlerUrl::new("http://example.com").unwrap(),
+            selector: CrawlerSelectorValue::new("body").unwrap(),
             processing: false,
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
-            num_products: 0,
+            num_products: ProductCount::new(0).unwrap(),
         }
     }
 
@@ -65,7 +68,7 @@ mod tests {
         let repo = TestRepository::new(vec![sample_crawler()], vec![], vec![]);
         let user = sample_user();
 
-        let result = show_index(&repo, &user).unwrap();
+        let result = show_index(&user, &repo).unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id, 1);

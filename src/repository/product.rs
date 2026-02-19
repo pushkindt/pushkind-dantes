@@ -5,6 +5,7 @@ use diesel::sql_types::{BigInt, Integer, Text};
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::product::Product;
+use crate::domain::types::ImageUrl;
 use crate::models::product::Product as DbProduct;
 use crate::repository::{DieselRepository, ProductListQuery, ProductReader, ProductWriter};
 
@@ -27,8 +28,8 @@ impl ProductReader for DieselRepository {
             .optional()?;
 
         // Short-circuit early if no product exists
-        let mut product = match db_product {
-            Some(p) => Product::from(p),
+        let mut product: Product = match db_product {
+            Some(p) => p.try_into()?,
             None => return Ok(None),
         };
 
@@ -37,7 +38,10 @@ impl ProductReader for DieselRepository {
             .select(product_images::url)
             .load::<String>(&mut conn)?;
 
-        product.images = images;
+        product.images = images
+            .into_iter()
+            .map(ImageUrl::new)
+            .collect::<Result<Vec<ImageUrl>, _>>()?;
 
         Ok(Some(product))
     }
@@ -107,11 +111,11 @@ impl ProductReader for DieselRepository {
             .order(products::name.asc())
             .load::<DbProduct>(&mut conn)?
             .into_iter()
-            .map(Into::into)
-            .collect::<Vec<Product>>();
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<Product>, _>>()?;
 
         if !items.is_empty() {
-            let product_ids: Vec<i32> = items.iter().map(|product| product.id).collect();
+            let product_ids: Vec<i32> = items.iter().map(|product| product.id.get()).collect();
             let image_rows = product_images::table
                 .filter(product_images::product_id.eq_any(&product_ids))
                 .select((product_images::product_id, product_images::url))
@@ -123,8 +127,12 @@ impl ProductReader for DieselRepository {
             }
 
             for product in &mut items {
-                if let Some(images) = image_map.remove(&product.id) {
-                    product.images = images;
+                if let Some(images) = image_map.remove(&product.id.get()) {
+                    product.images = images.into_iter().map(ImageUrl::new).collect::<Result<
+                        Vec<ImageUrl>,
+                        _,
+                    >>(
+                    )?;
                 }
             }
         }
@@ -226,8 +234,8 @@ impl ProductReader for DieselRepository {
         let items = data_query
             .load::<DbProduct>(&mut conn)?
             .into_iter()
-            .map(Into::into)
-            .collect();
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<Product>, _>>()?;
 
         let total = total_query.get_result::<ProductCount>(&mut conn)?.count as usize;
         Ok((total, items))
