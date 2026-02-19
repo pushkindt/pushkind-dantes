@@ -1,6 +1,7 @@
 use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::routes::check_role;
 
+use crate::SERVICE_ACCESS_ROLE;
 use crate::domain::crawler::Crawler;
 use crate::repository::CrawlerReader;
 
@@ -16,7 +17,7 @@ pub fn show_index<R>(user: &AuthenticatedUser, repo: &R) -> ServiceResult<Vec<Cr
 where
     R: CrawlerReader,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -45,7 +46,7 @@ mod tests {
             email: "test@example.com".into(),
             hub_id: 1,
             name: "Test".into(),
-            roles: vec!["parser".into()],
+            roles: vec![SERVICE_ACCESS_ROLE.into()],
             exp: 0,
         }
     }

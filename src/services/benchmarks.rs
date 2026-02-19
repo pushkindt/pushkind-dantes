@@ -5,6 +5,7 @@ use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::check_role;
 use pushkind_common::zmq::ZmqSenderExt;
 
+use crate::SERVICE_ACCESS_ROLE;
 use crate::domain::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use crate::forms::benchmarks::{
@@ -27,7 +28,7 @@ pub fn show_benchmarks<R>(user: &AuthenticatedUser, repo: &R) -> ServiceResult<V
 where
     R: BenchmarkReader,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -59,7 +60,7 @@ pub fn show_benchmark<R>(
 where
     R: BenchmarkReader + CrawlerReader + ProductReader,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -121,7 +122,7 @@ pub fn add_benchmark<R>(
 where
     R: BenchmarkWriter,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -164,7 +165,7 @@ pub fn upload_benchmarks<R>(
 where
     R: BenchmarkWriter,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -209,7 +210,7 @@ where
     R: BenchmarkReader,
     S: ZmqSenderExt + ?Sized,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -246,7 +247,7 @@ where
     R: BenchmarkReader + CrawlerReader + ProductReader,
     S: ZmqSenderExt + ?Sized,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -312,7 +313,7 @@ pub fn delete_benchmark_product<R>(
 where
     R: BenchmarkReader + ProductReader + CrawlerReader + BenchmarkWriter,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -372,7 +373,7 @@ pub fn create_benchmark_product<R>(
 where
     R: BenchmarkReader + ProductReader + CrawlerReader + BenchmarkWriter,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -438,7 +439,7 @@ mod tests {
             email: "test@example.com".into(),
             hub_id: 1,
             name: "Test".into(),
-            roles: vec!["parser".into()],
+            roles: vec![SERVICE_ACCESS_ROLE.into()],
             exp: 0,
         }
     }

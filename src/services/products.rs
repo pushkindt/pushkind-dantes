@@ -3,6 +3,7 @@ use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::check_role;
 use pushkind_common::zmq::ZmqSenderExt;
 
+use crate::SERVICE_ACCESS_ROLE;
 use crate::domain::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::domain::{crawler::Crawler, product::Product};
 use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
@@ -24,7 +25,7 @@ pub fn show_products<R>(
 where
     R: CrawlerReader + ProductReader,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -70,7 +71,7 @@ where
     R: CrawlerReader,
     S: ZmqSenderExt + ?Sized,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -110,7 +111,7 @@ where
     R: CrawlerReader + ProductReader,
     S: ZmqSenderExt + ?Sized,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -163,7 +164,7 @@ mod tests {
             email: "test@example.com".into(),
             hub_id: 1,
             name: "Test".into(),
-            roles: vec!["parser".into()],
+            roles: vec![SERVICE_ACCESS_ROLE.into()],
             exp: 0,
         }
     }
