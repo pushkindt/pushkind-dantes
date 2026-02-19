@@ -3,6 +3,7 @@ use pushkind_common::routes::check_role;
 
 use crate::SERVICE_ACCESS_ROLE;
 use crate::domain::crawler::Crawler;
+use crate::domain::types::HubId;
 use crate::repository::CrawlerReader;
 
 use super::{ServiceError, ServiceResult};
@@ -21,7 +22,15 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    match repo.list_crawlers(user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    match repo.list_crawlers(hub_id) {
         Ok(crawlers) => Ok(crawlers),
         Err(e) => {
             log::error!("Failed to list crawlers: {e}");

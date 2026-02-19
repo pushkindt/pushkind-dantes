@@ -7,6 +7,7 @@ use pushkind_common::repository::errors::RepositoryResult;
 use crate::domain::benchmark::{Benchmark, NewBenchmark};
 use crate::domain::crawler::Crawler;
 use crate::domain::product::Product;
+use crate::domain::types::{BenchmarkId, CrawlerId, HubId, ProductId, SimilarityDistance};
 
 pub mod benchmark;
 pub mod crawler;
@@ -39,11 +40,11 @@ impl DieselRepository {
 #[derive(Debug, Clone, Default)]
 pub struct ProductListQuery {
     /// Filter by crawler identifier.
-    pub crawler_id: Option<i32>,
+    pub crawler_id: Option<CrawlerId>,
     /// Filter by hub identifier.
-    pub hub_id: Option<i32>,
+    pub hub_id: Option<HubId>,
     /// Restrict to products associated with a benchmark.
-    pub benchmark_id: Option<i32>,
+    pub benchmark_id: Option<BenchmarkId>,
     /// Full-text search string.
     pub search: Option<String>,
     /// Pagination parameters.
@@ -54,13 +55,13 @@ pub struct ProductListQuery {
 #[derive(Debug, Clone)]
 pub struct BenchmarkListQuery {
     /// Hub identifier.
-    pub hub_id: i32,
+    pub hub_id: HubId,
     /// Pagination parameters.
     pub pagination: Option<Pagination>,
 }
 
 impl BenchmarkListQuery {
-    pub fn new(hub_id: i32) -> Self {
+    pub fn new(hub_id: HubId) -> Self {
         Self {
             hub_id,
             pagination: None,
@@ -73,15 +74,15 @@ impl BenchmarkListQuery {
 }
 
 impl ProductListQuery {
-    pub fn crawler(mut self, crawler_id: i32) -> Self {
+    pub fn crawler(mut self, crawler_id: CrawlerId) -> Self {
         self.crawler_id = Some(crawler_id);
         self
     }
-    pub fn hub_id(mut self, hub_id: i32) -> Self {
+    pub fn hub_id(mut self, hub_id: HubId) -> Self {
         self.hub_id = Some(hub_id);
         self
     }
-    pub fn benchmark(mut self, benchmark_id: i32) -> Self {
+    pub fn benchmark(mut self, benchmark_id: BenchmarkId) -> Self {
         self.benchmark_id = Some(benchmark_id);
         self
     }
@@ -98,9 +99,9 @@ impl ProductListQuery {
 /// Read-only operations for crawler entities.
 pub trait CrawlerReader {
     /// List all crawlers for a specific hub.
-    fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>>;
+    fn list_crawlers(&self, hub_id: HubId) -> RepositoryResult<Vec<Crawler>>;
     /// Retrieve a crawler by its identifier.
-    fn get_crawler_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Crawler>>;
+    fn get_crawler_by_id(&self, id: CrawlerId, hub_id: HubId) -> RepositoryResult<Option<Crawler>>;
 }
 
 pub trait CrawlerWriter {}
@@ -110,11 +111,14 @@ pub trait ProductReader {
     /// List products matching the supplied query parameters.
     fn list_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
     /// Return a mapping of product identifiers to similarity distances for a benchmark.
-    fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>>;
+    fn list_distances(
+        &self,
+        benchmark_id: BenchmarkId,
+    ) -> RepositoryResult<HashMap<ProductId, SimilarityDistance>>;
     /// Perform a full-text search for products.
     fn search_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
     /// Retrieve a product by its identifier.
-    fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>>;
+    fn get_product_by_id(&self, id: ProductId) -> RepositoryResult<Option<Product>>;
 }
 
 pub trait ProductWriter {}
@@ -127,7 +131,11 @@ pub trait BenchmarkReader {
         query: BenchmarkListQuery,
     ) -> RepositoryResult<(usize, Vec<Benchmark>)>;
     /// Retrieve a benchmark by its identifier.
-    fn get_benchmark_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Benchmark>>;
+    fn get_benchmark_by_id(
+        &self,
+        id: BenchmarkId,
+        hub_id: HubId,
+    ) -> RepositoryResult<Option<Benchmark>>;
 }
 
 /// Write operations for benchmark entities and their associations.
@@ -137,14 +145,14 @@ pub trait BenchmarkWriter {
     /// Remove an association between a benchmark and a product.
     fn remove_benchmark_association(
         &self,
-        benchmark_id: i32,
-        product_id: i32,
+        benchmark_id: BenchmarkId,
+        product_id: ProductId,
     ) -> RepositoryResult<usize>;
     /// Create or update an association between a benchmark and a product with a similarity distance.
     fn set_benchmark_association(
         &self,
-        benchmark_id: i32,
-        product_id: i32,
-        distance: f32,
+        benchmark_id: BenchmarkId,
+        product_id: ProductId,
+        distance: SimilarityDistance,
     ) -> RepositoryResult<usize>;
 }
