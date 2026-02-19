@@ -90,8 +90,8 @@ where
 mod tests {
     use super::*;
     use crate::domain::types::{
-        CrawlerId, CrawlerName, CrawlerSelectorValue, CrawlerUrl, HubId, ProductCount, ProductId,
-        ProductName, ProductPrice, ProductSku, ProductUrl,
+        CategoryAssignmentSource, CrawlerId, CrawlerName, CrawlerSelectorValue, CrawlerUrl, HubId,
+        ProductCount, ProductId, ProductName, ProductPrice, ProductSku, ProductUrl,
     };
     use crate::domain::{crawler::Crawler, product::Product};
     use crate::repository::test::TestRepository;
@@ -136,6 +136,8 @@ mod tests {
             created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: Some(vec![1, 2, 3]),
+            category_id: None,
+            category_assignment_source: CategoryAssignmentSource::Automatic,
             images: vec![],
         }
     }

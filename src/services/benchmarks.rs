@@ -504,9 +504,10 @@ where
 mod tests {
     use super::*;
     use crate::domain::types::{
-        BenchmarkId, BenchmarkName, BenchmarkSku, CategoryName, CrawlerId, CrawlerName,
-        CrawlerSelectorValue, CrawlerUrl, HubId, ProductAmount, ProductCount, ProductDescription,
-        ProductId, ProductName, ProductPrice, ProductSku, ProductUnits, ProductUrl,
+        BenchmarkId, BenchmarkName, BenchmarkSku, CategoryAssignmentSource, CategoryName,
+        CrawlerId, CrawlerName, CrawlerSelectorValue, CrawlerUrl, HubId, ProductAmount,
+        ProductCount, ProductDescription, ProductId, ProductName, ProductPrice, ProductSku,
+        ProductUnits, ProductUrl,
     };
     use crate::repository::test::TestRepository;
     use chrono::DateTime;
@@ -551,6 +552,8 @@ mod tests {
             created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: None,
+            category_id: None,
+            category_assignment_source: CategoryAssignmentSource::Automatic,
             images: vec![],
         }
     }

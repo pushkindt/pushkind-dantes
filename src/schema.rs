@@ -20,6 +20,17 @@ diesel::table! {
 }
 
 diesel::table! {
+    categories (id) {
+        id -> Integer,
+        hub_id -> Integer,
+        name -> Text,
+        embedding -> Binary,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     crawlers (id) {
         id -> Integer,
         hub_id -> Integer,
@@ -63,6 +74,8 @@ diesel::table! {
         created_at -> Timestamp,
         updated_at -> Timestamp,
         embedding -> Nullable<Binary>,
+        category_id -> Nullable<Integer>,
+        category_assignment_source -> Text,
     }
 }
 
@@ -111,10 +124,12 @@ diesel::table! {
 diesel::joinable!(product_benchmark -> benchmarks (benchmark_id));
 diesel::joinable!(product_benchmark -> products (product_id));
 diesel::joinable!(product_images -> products (product_id));
+diesel::joinable!(products -> categories (category_id));
 diesel::joinable!(products -> crawlers (crawler_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     benchmarks,
+    categories,
     crawlers,
     product_benchmark,
     product_images,
