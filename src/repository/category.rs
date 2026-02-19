@@ -2,7 +2,7 @@ use diesel::prelude::*;
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::category::{Category, NewCategory};
-use crate::domain::types::{CategoryId, CategoryName, HubId};
+use crate::domain::types::{CategoryAssignmentSource, CategoryId, CategoryName, HubId};
 use crate::models::category::{Category as DbCategory, NewCategory as DbNewCategory};
 use crate::repository::{CategoryListQuery, CategoryReader, CategoryWriter, DieselRepository};
 
@@ -101,16 +101,35 @@ impl CategoryWriter for DieselRepository {
     }
 
     fn delete_category(&self, id: CategoryId, hub_id: HubId) -> RepositoryResult<usize> {
-        use crate::schema::categories;
+        use crate::schema::{categories, crawlers, products};
 
         let mut conn = self.conn()?;
 
-        let affected = diesel::delete(
-            categories::table
-                .filter(categories::id.eq(id.get()))
-                .filter(categories::hub_id.eq(hub_id.get())),
-        )
-        .execute(&mut conn)?;
+        let affected = conn.transaction(|conn| {
+            diesel::update(
+                products::table
+                    .filter(products::category_id.eq(Some(id.get())))
+                    .filter(
+                        products::crawler_id.eq_any(
+                            crawlers::table
+                                .filter(crawlers::hub_id.eq(hub_id.get()))
+                                .select(crawlers::id),
+                        ),
+                    ),
+            )
+            .set(
+                products::category_assignment_source
+                    .eq(CategoryAssignmentSource::Automatic.as_str()),
+            )
+            .execute(conn)?;
+
+            diesel::delete(
+                categories::table
+                    .filter(categories::id.eq(id.get()))
+                    .filter(categories::hub_id.eq(hub_id.get())),
+            )
+            .execute(conn)
+        })?;
 
         Ok(affected)
     }
