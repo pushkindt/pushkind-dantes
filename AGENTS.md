@@ -1,21 +1,36 @@
 # AGENTS.md
 
 This document provides guidance to AI code generators when working in this
-repository. Follow these practices so that new code matches the established
-architecture and conventions.
+repository. Follow these practices so new code stays aligned with the current
+implementation.
 
 ## Project Context
 
-`pushkind-dantes` is a Rust 2024 Actix Web application that uses Diesel with
-SQLite, Tera templates, and the shared `pushkind-common` crate. The codebase is
-layered into domain models, repository traits and implementations, service
-modules, DTOs, Actix routes, forms, and templates. Business logic belongs in the
-service layer; handlers and repositories should stay thin and focused on I/O
-concerns.
+`pushkind-dantes` is a Rust 2024 application with feature-gated layers:
+- `data` feature: domain types, Diesel models, schema, and shared conversions.
+- `server` feature (default): Actix Web routes, services, forms, templates,
+  and ZeroMQ integration.
+
+Core stack:
+- Actix Web + session/identity/flash middleware
+- Diesel + SQLite + r2d2 pooling
+- Tera templates
+- shared `pushkind-common` crate (auth, middleware, db helpers, ZMQ sender)
+
+Current module layout:
+- `src/domain`: entities and strongly-typed value objects (`src/domain/types.rs`)
+- `src/models`: Diesel structs and domain conversions
+- `src/repository`: traits + `DieselRepository` implementation + in-memory
+  `TestRepository` for unit tests
+- `src/forms`: form parsing/validation (currently benchmark workflows)
+- `src/services`: business logic + authorization checks
+- `src/routes`: HTTP handlers
+- `templates/`: server-rendered UI
+- `src/dto/`: currently present but effectively unused in runtime flows
 
 ## Development Commands
 
-Use these commands to verify your changes before committing:
+Use these commands to verify changes:
 
 **Build**
 ```bash
@@ -37,85 +52,71 @@ cargo clippy --all-features --tests -- -Dwarnings
 cargo fmt --all -- --check
 ```
 
+Optional aggregate check:
+```bash
+make check
+```
+
 ## Coding Standards
 
-- Use idiomatic Rust; avoid `unwrap` and `expect` in production paths.
-- Keep modules focused: domain types in `src/domain`, Diesel models in
-  `src/models`, DTOs in `src/dto`, and conversions implemented via `From`/`Into`.
-- Domain structs should expose strongly typed fields (e.g., `UserEmail`,
-  `HubId`, `MenuName`, `RoleName`, `UserName`) that encode validation
-  constraints. Construct these types at the boundaries (forms/services) so
-  domain data is always trusted and cannot represent invalid input.
-- Define error enums with `thiserror` inside the crate that owns the failure and
-  return `RepositoryResult<T>` / `ServiceResult<T>` from repository and service
-  functions.
-- Services should return DTO-level structs when handing data to routes; perform
-  domain-to-DTO conversion inside the service layer to keep handlers thin. DTOs
-  live in `src/dto` and are optimized for template rendering or JSON serialization.
-- Service functions should accept trait bounds (e.g., `OrderReader + OrderWriter`)
-  so the `DieselRepository` and `mockall`-powered fakes remain interchangeable.
-- Service function signatures should follow the parameter order:
-  target, input data, actor/auth context, persistence, messaging/integrations.
-- Domain structs must not perform validation or normalization (e.g., no
-  `to_lowercase`); assume inputs are already sanitized and transformed by forms
-  or services before reaching the domain layer.
-- Sanitize and validate user input early using `validator` and `ammonia` helpers
-  from the form layer.
-- Perform trimming, case normalisation, and other input clean-up before
-  constructing domain types; domain builders assume callers supply sanitised
-  values.
-- Forms should have a strongly typed `*Payload` counterpart in the same module
-  and a `TryFrom<*Form>` implementation that calls `validate()` and constructs
-  strong domain types, mapping type-construction failures to the form error.
-  Services should call `try_into()` on incoming forms, then build domain objects
-  from the payload plus any contextual ids.
-- Prefer dependency injection through function parameters over global state.
-- For Diesel update models, avoid nested optionals; prefer single-layer `Option<T>`
-  fields and rely on `#[diesel(treat_none_as_null = true)]` when nullable columns
-  need to be cleared.
-- Document all public APIs and any breaking changes.
+- Use idiomatic Rust; avoid `unwrap`/`expect` in production paths.
+- Keep responsibilities separated:
+  - routes: HTTP I/O + flash/redirect/response formatting,
+  - services: orchestration + authorization + business rules,
+  - repository: persistence concerns,
+  - models/domain: representation and type conversions.
+- Prefer explicit `From`/`TryFrom` conversions between Diesel and domain structs.
+- Construct strong domain types (`HubId`, `ProductUrl`, etc.) at boundaries
+  (forms/services). These wrappers enforce trimming/validation constraints.
+- Forms should have typed `*Payload` companions and `TryFrom<*Form>` validation.
+- Prefer dependency injection through trait bounds in services so
+  `DieselRepository` and `TestRepository` remain interchangeable.
+- Use `thiserror`-based error types and return `RepositoryResult<T>` /
+  `ServiceResult<T>` conventions already used in the codebase.
+- Document public APIs and breaking behavior changes.
 
 ## Database Guidelines
 
-- Use Diesel's query builder APIs with the generated `schema.rs` definitions; do
-  not write raw SQL.
-- Translate between Diesel structs (`src/models`) and domain types inside the
-  repository layer using explicit `From` implementations.
-- Reuse the filtering builders in `OrderListQuery`/`ProductListQuery` when adding new
-  queries and extend those structs rather than duplicating logic.
-- Check related records (e.g., users) before inserts or updates and convert
-  missing dependencies into `RepositoryError::NotFound` instead of panicking.
+- Prefer Diesel query builder with `schema.rs` for standard CRUD/filtering.
+- Reuse and extend existing query builders (`ProductListQuery`,
+  `BenchmarkListQuery`) instead of duplicating filtering logic.
+- Keep domain conversion logic in repository/model boundaries.
+- For SQLite FTS search paths, raw SQL is an accepted existing pattern
+  (`search_products`); keep bindings typed and avoid string interpolation for
+  untrusted values.
+- Preserve hub scoping guarantees when adding or changing queries.
+- Ensure new migrations include realistic `down.sql`; SQLite does not support all
+  `ALTER TABLE ... DROP COLUMN` operations directly.
 
 ## HTTP and Template Guidelines
 
-- Keep Actix handlers in `src/routes` focused on extracting inputs, invoking a
-  service, and returning an HTTP response.
-- Let Actix handlers manage redirects and flash messaging; keep services
-  transport-agnostic.
-- Render templates with Tera contexts that only expose sanitized data. Use the
-  existing component templates under `templates/` for shared UI.
-- For REST APIs, return JSON responses using DTOs from `src/dto`.
-- Respect the authorization checks via `pushkind_common::routes::ensure_role` and
-  the `SERVICE_ACCESS_ROLE` constant for hub user routes.
+- Keep Actix handlers in `src/routes` thin and transport-focused.
+- Keep services transport-agnostic; do not embed HTTP response logic there.
+- Continue using `pushkind_common::routes` helpers (`base_context`,
+  `render_template`, `redirect`) in route handlers.
+- Authorization is enforced in services via role checks using
+  `pushkind_common::routes::check_role` and `SERVICE_ACCESS_ROLE`.
+- Current API responses return domain structs directly (not DTO-based mapping).
+- Reuse shared templates/components under `templates/components`.
 
 ## ZeroMQ Integration
 
-- The service triggers web crawling and product matching jobs to a ZeroMQ PUB socket configured via
-  `APP_ZMQ_CRAWLERS_PUB`.
-- Use the `ZmqSender` from `pushkind-common` to publish events; it's injected as
-  `Arc<ZmqSender>` in Actix app data.
-- The ZeroMQ sender runs in a background thread and handles message queuing
-  automatically.
+- Job dispatch uses `Arc<ZmqSender>` injected via Actix app data.
+- Message contracts live in `src/domain/zmq.rs`.
+- The web app publishes crawl/match/update commands; worker execution,
+  retries, and completion semantics are external to this repository.
 
 ## Testing Expectations
 
-- Add unit tests for new service and form logic. When hitting the database, use
-  Diesel migrations and helper constructors rather than hard-coded SQL strings.
-- Use the mock repository module (`src/repository/mock.rs`) generated with
-  `mockall` to isolate service tests from Diesel.
-- Test DTO conversions to ensure domain-to-DTO transformations preserve required
-  data for templates and API responses.
-- Ensure new functionality is covered by tests before opening a pull request.
+- Add unit tests for new service and form logic.
+- Service unit tests should use `src/repository/test.rs` (`TestRepository`) to
+  isolate business logic from Diesel.
+- Integration tests under `tests/` should use Diesel migrations/helpers rather
+  than hard-coded SQL fixtures.
+- Run build/test/clippy/fmt checks before opening a PR.
 
-By following these principles the generated code will align with the project's
-architecture, technology stack, and long-term maintainability goals.
+## Documentation Expectations
+
+- Update `SPEC.md` when behavior, contracts, routes, or data semantics change.
+- Keep `README.md` concise; avoid duplicating detailed content that belongs in
+  `SPEC.md` or this file.
