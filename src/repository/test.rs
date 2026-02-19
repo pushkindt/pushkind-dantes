@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
-use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use pushkind_common::repository::errors::RepositoryResult;
 
+use crate::domain::benchmark::NewBenchmark;
+use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use crate::repository::{
-    BenchmarkListQuery, BenchmarkReader, CrawlerReader, ProductListQuery, ProductReader,
+    BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductListQuery,
+    ProductReader,
 };
 
 /// Simple in-memory repository used for unit tests.
@@ -105,5 +107,28 @@ impl BenchmarkReader for TestRepository {
             .iter()
             .find(|b| b.id == id)
             .map(Self::clone_benchmark))
+    }
+}
+
+impl BenchmarkWriter for TestRepository {
+    fn create_benchmark(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize> {
+        Ok(benchmarks.len())
+    }
+
+    fn remove_benchmark_association(
+        &self,
+        _benchmark_id: i32,
+        _product_id: i32,
+    ) -> RepositoryResult<usize> {
+        Ok(1)
+    }
+
+    fn set_benchmark_association(
+        &self,
+        _benchmark_id: i32,
+        _product_id: i32,
+        _distance: f32,
+    ) -> RepositoryResult<usize> {
+        Ok(1)
     }
 }

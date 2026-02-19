@@ -47,6 +47,10 @@ pub async fn show_benchmarks(
         }
         Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+            redirect("/benchmarks")
+        }
         Err(err) => {
             log::error!("Failed to render benchmarks page: {err}");
             HttpResponse::InternalServerError().finish()
@@ -81,6 +85,10 @@ pub async fn show_benchmark(
             FlashMessage::error("Бенчмарк не существует").send();
             redirect("/benchmarks")
         }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+            redirect("/benchmarks")
+        }
         Err(err) => {
             log::error!("Failed to render benchmark details: {err}");
             HttpResponse::InternalServerError().finish()
@@ -102,6 +110,9 @@ pub async fn add_benchmark(
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
+        }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
         }
         Err(ServiceError::Internal) => {
             return HttpResponse::InternalServerError().finish();
@@ -138,6 +149,9 @@ pub async fn match_benchmark(
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
         }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+        }
         Err(ServiceError::Internal) => {
             return HttpResponse::InternalServerError().finish();
         }
@@ -167,6 +181,9 @@ pub async fn upload_benchmarks(
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
+        }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
         }
         Err(err) => {
             log::error!("Failed to upload benchmarks: {err}");
@@ -208,6 +225,9 @@ pub async fn update_benchmark_prices(
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
         }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+        }
         Err(ServiceError::Internal) => {
             return HttpResponse::InternalServerError().finish();
         }
@@ -236,6 +256,9 @@ pub async fn delete_benchmark_product(
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк или товар не существует").send();
         }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+        }
         Err(ServiceError::Internal) => {
             return HttpResponse::InternalServerError().finish();
         }
@@ -263,6 +286,9 @@ pub async fn create_benchmark_product(
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк или товар не существует").send();
+        }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
         }
         Err(ServiceError::Internal) => {
             return HttpResponse::InternalServerError().finish();

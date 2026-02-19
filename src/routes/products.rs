@@ -32,7 +32,8 @@ pub async fn show_products(
     tera: web::Data<Tera>,
 ) -> impl Responder {
     let page = params.page.unwrap_or(1);
-    match show_products_service(crawler_id.into_inner(), page, &user, repo.get_ref()) {
+    let crawler_id = crawler_id.into_inner();
+    match show_products_service(crawler_id, page, &user, repo.get_ref()) {
         Ok((crawler, products)) => {
             let mut context = base_context(
                 &flash_messages,
@@ -48,6 +49,10 @@ pub async fn show_products(
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Парсер не существует").send();
             redirect("/")
+        }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+            redirect(&format!("/crawler/{crawler_id}"))
         }
         Err(err) => {
             log::error!("Failed to render crawler products: {err}");

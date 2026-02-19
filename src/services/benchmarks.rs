@@ -112,8 +112,9 @@ where
 /// Adds a new benchmark from the supplied form.
 ///
 /// Validates the `parser` role and the form itself before persisting the
-/// benchmark. Returns `Ok(true)` if the benchmark was created, `Ok(false)` if
-/// validation failed or the repository returned an error.
+/// benchmark. Returns `Ok(true)` if the benchmark was created,
+/// `Err(ServiceError::Form(_))` if form validation failed, and `Ok(false)` if
+/// the repository returned an error.
 pub fn add_benchmark<R>(
     form: AddBenchmarkForm,
     user: &AuthenticatedUser,
@@ -130,7 +131,7 @@ where
         Ok(payload) => payload,
         Err(e) => {
             log::error!("Failed to parse add benchmark form: {e}");
-            return Ok(false);
+            return Err(ServiceError::Form(e.to_string()));
         }
     };
 
@@ -155,8 +156,9 @@ where
 
 /// Parses and uploads multiple benchmarks.
 ///
-/// Returns `Ok(true)` if benchmarks were created successfully, `Ok(false)` if
-/// parsing failed or the repository returned an error.
+/// Returns `Ok(true)` if benchmarks were created successfully,
+/// `Err(ServiceError::Form(_))` if parsing failed, and `Ok(false)` if the
+/// repository returned an error.
 pub fn upload_benchmarks<R>(
     form: &mut UploadBenchmarksForm,
     user: &AuthenticatedUser,
@@ -173,7 +175,7 @@ where
         Ok(payload) => payload,
         Err(e) => {
             log::error!("Failed to parse upload benchmarks form: {e}");
-            return Ok(false);
+            return Err(ServiceError::Form(e.to_string()));
         }
     };
 
@@ -303,8 +305,9 @@ where
 
 /// Removes an association between a benchmark and a product.
 ///
-/// Returns `Ok(true)` if the association was removed, `Ok(false)` if the
-/// repository returned an error or entities were not found.
+/// Returns `Ok(true)` if the association was removed,
+/// `Err(ServiceError::Form(_))` if form validation failed, and `Ok(false)` if
+/// the repository returned an error or entities were not found.
 pub fn delete_benchmark_product<R>(
     form: UnassociateForm,
     user: &AuthenticatedUser,
@@ -321,7 +324,7 @@ where
         Ok(payload) => payload,
         Err(e) => {
             log::error!("Failed to parse unassociate form: {e}");
-            return Ok(false);
+            return Err(ServiceError::Form(e.to_string()));
         }
     };
 
@@ -363,8 +366,9 @@ where
 
 /// Creates an association between a benchmark and a product.
 ///
-/// Returns `Ok(true)` if the association was created, `Ok(false)` if the
-/// repository returned an error or entities were not found.
+/// Returns `Ok(true)` if the association was created,
+/// `Err(ServiceError::Form(_))` if form validation failed, and `Ok(false)` if
+/// the repository returned an error or entities were not found.
 pub fn create_benchmark_product<R>(
     form: AssociateForm,
     user: &AuthenticatedUser,
@@ -381,7 +385,7 @@ where
         Ok(payload) => payload,
         Err(e) => {
             log::error!("Failed to parse associate form: {e}");
-            return Ok(false);
+            return Err(ServiceError::Form(e.to_string()));
         }
     };
 
@@ -523,5 +527,52 @@ mod tests {
         assert_eq!(value["page"], 1);
         assert_eq!(value["items"].as_array().unwrap().len(), 1);
         assert!(distances.is_empty());
+    }
+
+    #[test]
+    fn add_benchmark_returns_form_error_for_invalid_form() {
+        let repo = TestRepository::default();
+        let user = sample_user();
+        let form = AddBenchmarkForm {
+            name: String::new(),
+            sku: "SKU1".into(),
+            category: "cat".into(),
+            units: "pcs".into(),
+            price: 1.0,
+            amount: 1.0,
+            description: "desc".into(),
+        };
+
+        let result = add_benchmark(form, &user, &repo);
+
+        assert!(matches!(result, Err(ServiceError::Form(_))));
+    }
+
+    #[test]
+    fn delete_benchmark_product_returns_form_error_for_invalid_form() {
+        let repo = TestRepository::default();
+        let user = sample_user();
+        let form = UnassociateForm {
+            benchmark_id: 0,
+            product_id: 1,
+        };
+
+        let result = delete_benchmark_product(form, &user, &repo);
+
+        assert!(matches!(result, Err(ServiceError::Form(_))));
+    }
+
+    #[test]
+    fn create_benchmark_product_returns_form_error_for_invalid_form() {
+        let repo = TestRepository::default();
+        let user = sample_user();
+        let form = AssociateForm {
+            benchmark_id: 1,
+            product_id: 0,
+        };
+
+        let result = create_benchmark_product(form, &user, &repo);
+
+        assert!(matches!(result, Err(ServiceError::Form(_))));
     }
 }

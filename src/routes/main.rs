@@ -1,5 +1,5 @@
 use actix_web::{HttpResponse, Responder, get, web};
-use actix_web_flash_messages::IncomingFlashMessages;
+use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::{base_context, redirect, render_template};
@@ -32,6 +32,10 @@ pub async fn index(
         }
         Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+            redirect("/")
+        }
         Err(err) => {
             log::error!("Failed to render index page: {err}");
             HttpResponse::InternalServerError().finish()
