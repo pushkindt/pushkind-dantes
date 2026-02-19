@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::domain::types::{BenchmarkId, CrawlerSelectorValue, ProductUrl};
+use crate::domain::types::{BenchmarkId, CrawlerSelectorValue, HubId, ProductUrl};
 
 /// Messages received over ZMQ to control crawlers or run benchmarks.
 ///
@@ -12,6 +12,8 @@ pub enum ZMQCrawlerMessage {
     Crawler(CrawlerSelector),
     /// Execute benchmarks with the provided benchmark_id.
     Benchmark(BenchmarkId),
+    /// Run product-to-category matching for a hub.
+    ProductCategoryMatch(HubId),
 }
 
 /// Selects a crawler and optionally a list of product URLs to crawl.

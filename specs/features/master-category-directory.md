@@ -13,6 +13,9 @@ Each category has at minimum:
 - `id`
 - `hub_id`
 - `name`
+
+Optional field:
+
 - `embedding`
 
 Category names are flat strings and may represent hierarchy using slash-separated path segments (for example `Tea/Green/Sencha`), but no database tree structure is introduced.
@@ -25,7 +28,7 @@ Users can manually override per-product category assignments, and automatic matc
 
 - Add a canonical category directory managed from this application and isolated per hub.
 - Support full CRUD operations for category records.
-- Store category embeddings alongside category names.
+- Store optional category embeddings alongside category names.
 - Allow products to reference canonical categories via optional foreign key.
 - Support manual per-product category assignment overrides.
 - Preserve manual overrides across subsequent automatic matching runs.
@@ -52,7 +55,8 @@ Users can manually override per-product category assignments, and automatic matc
 ### 4.2 Category Embedding
 
 - Stored as binary payload (`BLOB`) compatible with existing embedding storage patterns.
-- Required field at entity level.
+- Optional field at entity level.
+- On category create/update in this app, embedding may be empty and is expected to be populated by `pushkind-crawlers`.
 - Interpretation of vector format/dimension is delegated to worker pipeline and shared conventions.
 
 ### 4.3 Product Category Link
@@ -78,7 +82,7 @@ Authorized users can:
 
 - list categories,
 - create a category,
-- update category name and embedding,
+- update category name (embedding remains crawler-managed),
 - delete a category.
 
 All operations require role `parser`.
@@ -160,7 +164,7 @@ Required columns:
 - `id INTEGER PRIMARY KEY`
 - `hub_id INTEGER NOT NULL`
 - `name TEXT NOT NULL`
-- `embedding BLOB NOT NULL`
+- `embedding BLOB NULL`
 
 Recommended support columns:
 
@@ -209,7 +213,6 @@ Contract semantics:
 
 - Duplicate category name -> validation/form error.
 - Invalid name path format -> validation/form error.
-- Invalid embedding payload -> validation/form error.
 - Cross-hub category access attempts -> not found or unauthorized.
 - Invalid manual assignment target product/category -> not found or validation/form error.
 - Delete category in use -> allowed, sets `products.category_id = NULL`; affected manual assignments are reset to `automatic`.
@@ -230,7 +233,7 @@ Contract semantics:
 
 ## 12. Testing Requirements
 
-- Unit tests for category form validation (`name`, `embedding`).
+- Unit tests for category form validation (`name`).
 - Unit tests for manual assignment forms/payloads.
 - Service tests for CRUD authorization and repository orchestration.
 - Service tests for manual set/clear assignment behavior and hub scoping checks.

@@ -41,6 +41,7 @@ Implement master category directory CRUD, product optional `category_id`, manual
 - Add category forms and payload validation.
 - Implement category services:
   - list/create/update/delete.
+  - Add services under `src/services/categories.rs`.
 - Enforce hub-isolation in category service operations (read/write only within current user hub).
 - Add forms/services for manual product category set/clear operations with hub scoping checks.
 - Add service to enqueue category matching ZMQ command.
@@ -51,8 +52,6 @@ Implement master category directory CRUD, product optional `category_id`, manual
 ### Phase 4: Routes and Templates
 
 - Add routes under `src/routes/categories.rs`.
-- Add services under `src/services/categories.rs`.
-- Add DTOs accepted and returned by the services under `src/dto/categories.rs`.
 - Register routes in `src/lib.rs`.
 - Add templates for category page/actions.
 - Extend navigation component to include categories.

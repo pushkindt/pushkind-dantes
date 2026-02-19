@@ -79,7 +79,7 @@ impl CategoryWriter for DieselRepository {
         id: CategoryId,
         hub_id: HubId,
         name: &CategoryName,
-        embedding: &[u8],
+        embedding: Option<&[u8]>,
     ) -> RepositoryResult<usize> {
         use crate::schema::categories;
 

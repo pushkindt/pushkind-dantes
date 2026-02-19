@@ -11,7 +11,7 @@ pub struct Category {
     pub id: i32,
     pub hub_id: i32,
     pub name: String,
-    pub embedding: Vec<u8>,
+    pub embedding: Option<Vec<u8>>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -22,7 +22,7 @@ pub struct Category {
 pub struct NewCategory {
     pub hub_id: i32,
     pub name: String,
-    pub embedding: Vec<u8>,
+    pub embedding: Option<Vec<u8>>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }

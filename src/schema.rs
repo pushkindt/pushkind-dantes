@@ -24,7 +24,7 @@ diesel::table! {
         id -> Integer,
         hub_id -> Integer,
         name -> Text,
-        embedding -> Binary,
+        embedding -> Nullable<Binary>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

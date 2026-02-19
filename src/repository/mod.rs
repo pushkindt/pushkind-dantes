@@ -181,7 +181,7 @@ pub trait CategoryWriter {
         id: CategoryId,
         hub_id: HubId,
         name: &CategoryName,
-        embedding: &[u8],
+        embedding: Option<&[u8]>,
     ) -> RepositoryResult<usize>;
     /// Delete a category by id and hub.
     fn delete_category(&self, id: CategoryId, hub_id: HubId) -> RepositoryResult<usize>;

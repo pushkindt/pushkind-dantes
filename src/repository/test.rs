@@ -32,6 +32,11 @@ impl TestRepository {
         }
     }
 
+    pub fn with_categories(mut self, categories: Vec<Category>) -> Self {
+        self.categories = categories;
+        self
+    }
+
     fn clone_crawler(c: &Crawler) -> Crawler {
         c.clone()
     }
@@ -217,7 +222,7 @@ impl CategoryWriter for TestRepository {
         _id: CategoryId,
         _hub_id: HubId,
         _name: &CategoryName,
-        _embedding: &[u8],
+        _embedding: Option<&[u8]>,
     ) -> RepositoryResult<usize> {
         Ok(1)
     }

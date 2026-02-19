@@ -9,7 +9,7 @@ pub struct Category {
     pub id: CategoryId,
     pub hub_id: HubId,
     pub name: CategoryName,
-    pub embedding: Vec<u8>,
+    pub embedding: Option<Vec<u8>>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -19,7 +19,7 @@ pub struct Category {
 pub struct NewCategory {
     pub hub_id: HubId,
     pub name: CategoryName,
-    pub embedding: Vec<u8>,
+    pub embedding: Option<Vec<u8>>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
