@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::benchmark::NewBenchmark;
+use crate::domain::types::{BenchmarkId, CrawlerId, HubId, ProductId, SimilarityDistance};
 use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use crate::repository::{
     BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductListQuery,
@@ -12,7 +13,7 @@ use crate::repository::{
 /// Simple in-memory repository used for unit tests.
 #[derive(Default)]
 pub struct TestRepository {
-    crawlers: HashMap<i32, Crawler>,
+    crawlers: HashMap<CrawlerId, Crawler>,
     products: Vec<Product>,
     benchmarks: Vec<Benchmark>,
 }
@@ -20,7 +21,7 @@ pub struct TestRepository {
 impl TestRepository {
     pub fn new(crawlers: Vec<Crawler>, products: Vec<Product>, benchmarks: Vec<Benchmark>) -> Self {
         Self {
-            crawlers: crawlers.into_iter().map(|c| (c.id.get(), c)).collect(),
+            crawlers: crawlers.into_iter().map(|c| (c.id, c)).collect(),
             products,
             benchmarks,
         }
@@ -40,7 +41,7 @@ impl TestRepository {
 }
 
 impl CrawlerReader for TestRepository {
-    fn list_crawlers(&self, hub_id: i32) -> RepositoryResult<Vec<Crawler>> {
+    fn list_crawlers(&self, hub_id: HubId) -> RepositoryResult<Vec<Crawler>> {
         Ok(self
             .crawlers
             .values()
@@ -49,7 +50,11 @@ impl CrawlerReader for TestRepository {
             .collect())
     }
 
-    fn get_crawler_by_id(&self, id: i32, _hub_id: i32) -> RepositoryResult<Option<Crawler>> {
+    fn get_crawler_by_id(
+        &self,
+        id: CrawlerId,
+        _hub_id: HubId,
+    ) -> RepositoryResult<Option<Crawler>> {
         Ok(self.crawlers.get(&id).map(Self::clone_crawler))
     }
 }
@@ -64,7 +69,10 @@ impl ProductReader for TestRepository {
         Ok((total, items))
     }
 
-    fn list_distances(&self, _benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>> {
+    fn list_distances(
+        &self,
+        _benchmark_id: BenchmarkId,
+    ) -> RepositoryResult<HashMap<ProductId, SimilarityDistance>> {
         Ok(HashMap::new())
     }
 
@@ -81,7 +89,7 @@ impl ProductReader for TestRepository {
         Ok((total, items))
     }
 
-    fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
+    fn get_product_by_id(&self, id: ProductId) -> RepositoryResult<Option<Product>> {
         Ok(self
             .products
             .iter()
@@ -101,7 +109,11 @@ impl BenchmarkReader for TestRepository {
         Ok((total, items))
     }
 
-    fn get_benchmark_by_id(&self, id: i32, _hub_id: i32) -> RepositoryResult<Option<Benchmark>> {
+    fn get_benchmark_by_id(
+        &self,
+        id: BenchmarkId,
+        _hub_id: HubId,
+    ) -> RepositoryResult<Option<Benchmark>> {
         Ok(self
             .benchmarks
             .iter()
@@ -117,17 +129,17 @@ impl BenchmarkWriter for TestRepository {
 
     fn remove_benchmark_association(
         &self,
-        _benchmark_id: i32,
-        _product_id: i32,
+        _benchmark_id: BenchmarkId,
+        _product_id: ProductId,
     ) -> RepositoryResult<usize> {
         Ok(1)
     }
 
     fn set_benchmark_association(
         &self,
-        _benchmark_id: i32,
-        _product_id: i32,
-        _distance: f32,
+        _benchmark_id: BenchmarkId,
+        _product_id: ProductId,
+        _distance: SimilarityDistance,
     ) -> RepositoryResult<usize> {
         Ok(1)
     }

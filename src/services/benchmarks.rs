@@ -6,6 +6,7 @@ use pushkind_common::routes::check_role;
 use pushkind_common::zmq::ZmqSenderExt;
 
 use crate::SERVICE_ACCESS_ROLE;
+use crate::domain::types::{BenchmarkId, HubId, SimilarityDistance};
 use crate::domain::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use crate::forms::benchmarks::{
@@ -32,7 +33,15 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    match repo.list_benchmarks(BenchmarkListQuery::new(user.hub_id)) {
+    let hub_id = match HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    match repo.list_benchmarks(BenchmarkListQuery::new(hub_id)) {
         Ok((_total, benchmarks)) => Ok(benchmarks),
         Err(e) => {
             log::error!("Failed to list benchmarks: {e}");
@@ -64,7 +73,20 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id, user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let benchmark_id = match BenchmarkId::new(benchmark_id) {
+        Ok(benchmark_id) => benchmark_id,
+        Err(_) => return Err(ServiceError::NotFound),
+    };
+
+    let benchmark = match repo.get_benchmark_by_id(benchmark_id, hub_id) {
         Ok(Some(benchmark)) => benchmark,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -73,7 +95,7 @@ where
         }
     };
 
-    let crawlers = match repo.list_crawlers(user.hub_id) {
+    let crawlers = match repo.list_crawlers(hub_id) {
         Ok(crawlers) => crawlers,
         Err(e) => {
             log::error!("Failed to list crawlers: {e}");
@@ -86,7 +108,7 @@ where
         let crawler_products = match repo.list_products(
             ProductListQuery::default()
                 .benchmark(benchmark_id)
-                .crawler(crawler.id.get())
+                .crawler(crawler.id)
                 .paginate(1, DEFAULT_ITEMS_PER_PAGE),
         ) {
             Ok((total, items)) => Paginated::new(items, 1, total.div_ceil(DEFAULT_ITEMS_PER_PAGE)),
@@ -99,7 +121,10 @@ where
     }
 
     let distances = match repo.list_distances(benchmark_id) {
-        Ok(distances) => distances,
+        Ok(distances) => distances
+            .into_iter()
+            .map(|(product_id, distance)| (product_id.get(), distance.get()))
+            .collect(),
         Err(e) => {
             log::error!("Failed to list distances: {e}");
             return Err(ServiceError::Internal);
@@ -135,7 +160,7 @@ where
         }
     };
 
-    let hub_id = match crate::domain::types::HubId::new(user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
         Ok(hub_id) => hub_id,
         Err(e) => {
             log::error!("Invalid hub id in user context: {e}");
@@ -179,7 +204,7 @@ where
         }
     };
 
-    let hub_id = match crate::domain::types::HubId::new(user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
         Ok(hub_id) => hub_id,
         Err(e) => {
             log::error!("Invalid hub id in user context: {e}");
@@ -216,7 +241,20 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id, user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let benchmark_id = match BenchmarkId::new(benchmark_id) {
+        Ok(benchmark_id) => benchmark_id,
+        Err(_) => return Err(ServiceError::NotFound),
+    };
+
+    let benchmark = match repo.get_benchmark_by_id(benchmark_id, hub_id) {
         Ok(Some(benchmark)) => benchmark,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -253,7 +291,20 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmark = match repo.get_benchmark_by_id(benchmark_id, user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let benchmark_id = match BenchmarkId::new(benchmark_id) {
+        Ok(benchmark_id) => benchmark_id,
+        Err(_) => return Err(ServiceError::NotFound),
+    };
+
+    let benchmark = match repo.get_benchmark_by_id(benchmark_id, hub_id) {
         Ok(Some(benchmark)) => benchmark,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -262,7 +313,7 @@ where
         }
     };
 
-    let crawlers = match repo.list_crawlers(user.hub_id) {
+    let crawlers = match repo.list_crawlers(hub_id) {
         Ok(crawlers) => crawlers,
         Err(e) => {
             log::error!("Failed to list crawlers: {e}");
@@ -274,8 +325,8 @@ where
     for crawler in crawlers {
         let products = match repo.list_products(
             ProductListQuery::default()
-                .benchmark(benchmark.id.get())
-                .crawler(crawler.id.get()),
+                .benchmark(benchmark.id)
+                .crawler(crawler.id),
         ) {
             Ok((_total, products)) => products,
             Err(e) => {
@@ -328,7 +379,15 @@ where
         }
     };
 
-    let benchmark = match repo.get_benchmark_by_id(payload.benchmark_id.get(), user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let benchmark = match repo.get_benchmark_by_id(payload.benchmark_id, hub_id) {
         Ok(Some(b)) => b,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -337,7 +396,7 @@ where
         }
     };
 
-    let product = match repo.get_product_by_id(payload.product_id.get()) {
+    let product = match repo.get_product_by_id(payload.product_id) {
         Ok(Some(p)) => p,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -346,7 +405,7 @@ where
         }
     };
 
-    match repo.get_crawler_by_id(product.crawler_id.get(), user.hub_id) {
+    match repo.get_crawler_by_id(product.crawler_id, hub_id) {
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -355,7 +414,7 @@ where
         }
     };
 
-    match repo.remove_benchmark_association(benchmark.id.get(), product.id.get()) {
+    match repo.remove_benchmark_association(benchmark.id, product.id) {
         Ok(_) => Ok(true),
         Err(e) => {
             log::error!("Failed to delete association: {e}");
@@ -389,7 +448,15 @@ where
         }
     };
 
-    let benchmark = match repo.get_benchmark_by_id(payload.benchmark_id.get(), user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let benchmark = match repo.get_benchmark_by_id(payload.benchmark_id, hub_id) {
         Ok(Some(b)) => b,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -398,7 +465,7 @@ where
         }
     };
 
-    let product = match repo.get_product_by_id(payload.product_id.get()) {
+    let product = match repo.get_product_by_id(payload.product_id) {
         Ok(Some(p)) => p,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -407,7 +474,7 @@ where
         }
     };
 
-    match repo.get_crawler_by_id(product.crawler_id.get(), user.hub_id) {
+    match repo.get_crawler_by_id(product.crawler_id, hub_id) {
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -416,7 +483,15 @@ where
         }
     };
 
-    match repo.set_benchmark_association(benchmark.id.get(), product.id.get(), 1.0) {
+    let distance = match SimilarityDistance::new(1.0) {
+        Ok(distance) => distance,
+        Err(e) => {
+            log::error!("Invalid default similarity distance: {e}");
+            return Ok(false);
+        }
+    };
+
+    match repo.set_benchmark_association(benchmark.id, product.id, distance) {
         Ok(_) => Ok(true),
         Err(e) => {
             log::error!("Failed to create benchmark association: {e}");

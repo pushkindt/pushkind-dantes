@@ -4,6 +4,7 @@ use pushkind_common::routes::check_role;
 use pushkind_common::zmq::ZmqSenderExt;
 
 use crate::SERVICE_ACCESS_ROLE;
+use crate::domain::types::{CrawlerId, HubId};
 use crate::domain::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::domain::{crawler::Crawler, product::Product};
 use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
@@ -29,7 +30,20 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let crawler = match repo.get_crawler_by_id(crawler_id, user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let crawler_id = match CrawlerId::new(crawler_id) {
+        Ok(crawler_id) => crawler_id,
+        Err(_) => return Err(ServiceError::NotFound),
+    };
+
+    let crawler = match repo.get_crawler_by_id(crawler_id, hub_id) {
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -75,7 +89,20 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let crawler = match repo.get_crawler_by_id(crawler_id, user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let crawler_id = match CrawlerId::new(crawler_id) {
+        Ok(crawler_id) => crawler_id,
+        Err(_) => return Err(ServiceError::NotFound),
+    };
+
+    let crawler = match repo.get_crawler_by_id(crawler_id, hub_id) {
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -115,7 +142,20 @@ where
         return Err(ServiceError::Unauthorized);
     }
 
-    let crawler = match repo.get_crawler_by_id(crawler_id, user.hub_id) {
+    let hub_id = match HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Err(ServiceError::Internal);
+        }
+    };
+
+    let crawler_id = match CrawlerId::new(crawler_id) {
+        Ok(crawler_id) => crawler_id,
+        Err(_) => return Err(ServiceError::NotFound),
+    };
+
+    let crawler = match repo.get_crawler_by_id(crawler_id, hub_id) {
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {

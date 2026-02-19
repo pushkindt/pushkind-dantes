@@ -2,18 +2,23 @@ use diesel::prelude::*;
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::benchmark::{Benchmark, NewBenchmark};
+use crate::domain::types::{BenchmarkId, HubId, ProductId, SimilarityDistance};
 use crate::models::benchmark::{Benchmark as DbBenchmark, NewBenchmark as DbNewBenchmark};
 use crate::repository::{BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, DieselRepository};
 
 impl BenchmarkReader for DieselRepository {
-    fn get_benchmark_by_id(&self, id: i32, hub_id: i32) -> RepositoryResult<Option<Benchmark>> {
+    fn get_benchmark_by_id(
+        &self,
+        id: BenchmarkId,
+        hub_id: HubId,
+    ) -> RepositoryResult<Option<Benchmark>> {
         use crate::schema::benchmarks;
 
         let mut conn = self.conn()?;
 
         let benchmark = benchmarks::table
-            .filter(benchmarks::id.eq(id))
-            .filter(benchmarks::hub_id.eq(hub_id))
+            .filter(benchmarks::id.eq(id.get()))
+            .filter(benchmarks::hub_id.eq(hub_id.get()))
             .first::<DbBenchmark>(&mut conn)
             .optional()?;
 
@@ -31,7 +36,7 @@ impl BenchmarkReader for DieselRepository {
 
         let query_builder = || {
             benchmarks::table
-                .filter(benchmarks::hub_id.eq(query.hub_id))
+                .filter(benchmarks::hub_id.eq(query.hub_id.get()))
                 .into_boxed::<diesel::sqlite::Sqlite>()
         };
 
@@ -77,8 +82,8 @@ impl BenchmarkWriter for DieselRepository {
 
     fn remove_benchmark_association(
         &self,
-        benchmark_id: i32,
-        product_id: i32,
+        benchmark_id: BenchmarkId,
+        product_id: ProductId,
     ) -> RepositoryResult<usize> {
         use crate::schema::product_benchmark;
 
@@ -86,8 +91,8 @@ impl BenchmarkWriter for DieselRepository {
 
         let affected = diesel::delete(
             product_benchmark::table
-                .filter(product_benchmark::benchmark_id.eq(benchmark_id))
-                .filter(product_benchmark::product_id.eq(product_id)),
+                .filter(product_benchmark::benchmark_id.eq(benchmark_id.get()))
+                .filter(product_benchmark::product_id.eq(product_id.get())),
         )
         .execute(&mut conn)?;
 
@@ -96,9 +101,9 @@ impl BenchmarkWriter for DieselRepository {
 
     fn set_benchmark_association(
         &self,
-        benchmark_id: i32,
-        product_id: i32,
-        distance: f32,
+        benchmark_id: BenchmarkId,
+        product_id: ProductId,
+        distance: SimilarityDistance,
     ) -> RepositoryResult<usize> {
         use crate::schema::product_benchmark;
 
@@ -107,9 +112,9 @@ impl BenchmarkWriter for DieselRepository {
         // Insert association entry with similarity distance
         let affected = diesel::insert_into(product_benchmark::table)
             .values((
-                product_benchmark::benchmark_id.eq(benchmark_id),
-                product_benchmark::product_id.eq(product_id),
-                product_benchmark::distance.eq(distance),
+                product_benchmark::benchmark_id.eq(benchmark_id.get()),
+                product_benchmark::product_id.eq(product_id.get()),
+                product_benchmark::distance.eq(distance.get()),
             ))
             .on_conflict((
                 product_benchmark::product_id,

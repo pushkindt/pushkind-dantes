@@ -5,7 +5,7 @@ use diesel::sql_types::{BigInt, Integer, Text};
 use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::product::Product;
-use crate::domain::types::ImageUrl;
+use crate::domain::types::{BenchmarkId, ImageUrl, ProductId, SimilarityDistance};
 use crate::models::product::Product as DbProduct;
 use crate::repository::{DieselRepository, ProductListQuery, ProductReader, ProductWriter};
 
@@ -17,13 +17,13 @@ struct ProductCount {
 }
 
 impl ProductReader for DieselRepository {
-    fn get_product_by_id(&self, id: i32) -> RepositoryResult<Option<Product>> {
+    fn get_product_by_id(&self, id: ProductId) -> RepositoryResult<Option<Product>> {
         use crate::schema::{product_images, products};
 
         let mut conn = self.conn()?;
 
         let db_product = products::table
-            .filter(products::id.eq(id))
+            .filter(products::id.eq(id.get()))
             .first::<DbProduct>(&mut conn)
             .optional()?;
 
@@ -34,7 +34,7 @@ impl ProductReader for DieselRepository {
         };
 
         let images = product_images::table
-            .filter(product_images::product_id.eq(id))
+            .filter(product_images::product_id.eq(id.get()))
             .select(product_images::url)
             .load::<String>(&mut conn)?;
 
@@ -46,18 +46,29 @@ impl ProductReader for DieselRepository {
         Ok(Some(product))
     }
 
-    fn list_distances(&self, benchmark_id: i32) -> RepositoryResult<HashMap<i32, f32>> {
+    fn list_distances(
+        &self,
+        benchmark_id: BenchmarkId,
+    ) -> RepositoryResult<HashMap<ProductId, SimilarityDistance>> {
         use crate::schema::product_benchmark;
 
         let mut conn = self.conn()?;
 
         let items: Vec<(i32, f32)> = product_benchmark::table
-            .filter(product_benchmark::benchmark_id.eq(benchmark_id))
+            .filter(product_benchmark::benchmark_id.eq(benchmark_id.get()))
             .select((product_benchmark::product_id, product_benchmark::distance))
             .order(product_benchmark::distance.asc())
             .load(&mut conn)?;
 
-        Ok(items.into_iter().collect())
+        let mut distances = HashMap::with_capacity(items.len());
+        for (product_id, distance) in items {
+            distances.insert(
+                ProductId::new(product_id)?,
+                SimilarityDistance::new(distance)?,
+            );
+        }
+
+        Ok(distances)
     }
 
     fn list_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)> {
@@ -69,14 +80,14 @@ impl ProductReader for DieselRepository {
             let mut items = products::table.into_boxed::<diesel::sqlite::Sqlite>();
 
             if let Some(crawler_id) = query.crawler_id {
-                items = items.filter(products::crawler_id.eq(crawler_id));
+                items = items.filter(products::crawler_id.eq(crawler_id.get()));
             }
 
             if let Some(benchmark_id) = query.benchmark_id {
                 items = items.filter(
                     products::id.eq_any(
                         product_benchmark::table
-                            .filter(product_benchmark::benchmark_id.eq(benchmark_id))
+                            .filter(product_benchmark::benchmark_id.eq(benchmark_id.get()))
                             .select(product_benchmark::product_id),
                     ),
                 );
@@ -86,7 +97,7 @@ impl ProductReader for DieselRepository {
                 items = items.filter(
                     products::crawler_id.eq_any(
                         crawlers::table
-                            .filter(crawlers::hub_id.eq(hub_id))
+                            .filter(crawlers::hub_id.eq(hub_id.get()))
                             .select(crawlers::id),
                     ),
                 );
@@ -209,18 +220,18 @@ impl ProductReader for DieselRepository {
             .bind::<Text, _>(&match_query);
 
         if let Some(crawler_id) = &query.crawler_id {
-            data_query = data_query.bind::<Integer, _>(crawler_id);
-            total_query = total_query.bind::<Integer, _>(crawler_id);
+            data_query = data_query.bind::<Integer, _>(crawler_id.get());
+            total_query = total_query.bind::<Integer, _>(crawler_id.get());
         }
 
         if let Some(benchmark_id) = &query.benchmark_id {
-            data_query = data_query.bind::<Integer, _>(benchmark_id);
-            total_query = total_query.bind::<Integer, _>(benchmark_id);
+            data_query = data_query.bind::<Integer, _>(benchmark_id.get());
+            total_query = total_query.bind::<Integer, _>(benchmark_id.get());
         }
 
         if let Some(hub_id) = &query.hub_id {
-            data_query = data_query.bind::<Integer, _>(hub_id);
-            total_query = total_query.bind::<Integer, _>(hub_id);
+            data_query = data_query.bind::<Integer, _>(hub_id.get());
+            total_query = total_query.bind::<Integer, _>(hub_id.get());
         }
 
         if let Some(pagination) = &query.pagination {
