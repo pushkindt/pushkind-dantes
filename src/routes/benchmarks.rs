@@ -6,13 +6,14 @@ use actix_web_flash_messages::{FlashMessage, IncomingFlashMessages};
 use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::models::config::CommonServerConfig;
 use pushkind_common::routes::{base_context, redirect, render_template};
-use pushkind_common::zmq::{ZmqSender, ZmqSenderExt};
+use pushkind_common::zmq::ZmqSender;
 use tera::Tera;
 
 use crate::forms::benchmarks::{
     AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
 };
 use crate::repository::DieselRepository;
+use crate::services::ServiceError;
 use crate::services::benchmarks::{
     add_benchmark as add_benchmark_service,
     create_benchmark_product as create_benchmark_product_service,
@@ -22,7 +23,6 @@ use crate::services::benchmarks::{
     update_benchmark_prices as update_benchmark_prices_service,
     upload_benchmarks as upload_benchmarks_service,
 };
-use crate::services::errors::ServiceError;
 
 #[get("/benchmarks")]
 pub async fn show_benchmarks(
@@ -32,7 +32,7 @@ pub async fn show_benchmarks(
     server_config: web::Data<CommonServerConfig>,
     tera: web::Data<Tera>,
 ) -> impl Responder {
-    match show_benchmarks_service(repo.get_ref(), &user) {
+    match show_benchmarks_service(&user, repo.get_ref()) {
         Ok(benchmarks) => {
             let mut context = base_context(
                 &flash_messages,
@@ -47,7 +47,14 @@ pub async fn show_benchmarks(
         }
         Err(ServiceError::Unauthorized) => redirect("/na"),
         Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
-        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+            redirect("/benchmarks")
+        }
+        Err(err) => {
+            log::error!("Failed to render benchmarks page: {err}");
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }
 
@@ -60,7 +67,7 @@ pub async fn show_benchmark(
     server_config: web::Data<CommonServerConfig>,
     tera: web::Data<Tera>,
 ) -> impl Responder {
-    match show_benchmark_service(repo.get_ref(), &user, benchmark_id.into_inner()) {
+    match show_benchmark_service(benchmark_id.into_inner(), &user, repo.get_ref()) {
         Ok((benchmark, products, distances)) => {
             let mut context = base_context(
                 &flash_messages,
@@ -78,7 +85,14 @@ pub async fn show_benchmark(
             FlashMessage::error("Бенчмарк не существует").send();
             redirect("/benchmarks")
         }
-        Err(ServiceError::Internal) => HttpResponse::InternalServerError().finish(),
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+            redirect("/benchmarks")
+        }
+        Err(err) => {
+            log::error!("Failed to render benchmark details: {err}");
+            HttpResponse::InternalServerError().finish()
+        }
     }
 }
 
@@ -88,7 +102,7 @@ pub async fn add_benchmark(
     repo: web::Data<DieselRepository>,
     web::Form(form): web::Form<AddBenchmarkForm>,
 ) -> impl Responder {
-    match add_benchmark_service(repo.get_ref(), &user, form) {
+    match add_benchmark_service(form, &user, repo.get_ref()) {
         Ok(true) => FlashMessage::success("Бенчмарк добавлен.").send(),
         Ok(false) => FlashMessage::error("Ошибка при добавлении бенчмарка").send(),
         Err(ServiceError::Unauthorized) => {
@@ -97,7 +111,14 @@ pub async fn add_benchmark(
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
         }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+        }
         Err(ServiceError::Internal) => {
+            return HttpResponse::InternalServerError().finish();
+        }
+        Err(err) => {
+            log::error!("Failed to add benchmark: {err}");
             return HttpResponse::InternalServerError().finish();
         }
     }
@@ -113,10 +134,10 @@ pub async fn match_benchmark(
     zmq_sender: web::Data<Arc<ZmqSender>>,
 ) -> impl Responder {
     match match_benchmark_service(
-        repo.get_ref(),
-        &user,
         benchmark_id.into_inner(),
-        async |msg| zmq_sender.send_json(msg).await.map_err(|_| ()),
+        &user,
+        repo.get_ref(),
+        zmq_sender.get_ref().as_ref(),
     )
     .await
     {
@@ -128,7 +149,14 @@ pub async fn match_benchmark(
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
         }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+        }
         Err(ServiceError::Internal) => {
+            return HttpResponse::InternalServerError().finish();
+        }
+        Err(err) => {
+            log::error!("Failed to queue benchmark matching: {err}");
             return HttpResponse::InternalServerError().finish();
         }
     }
@@ -142,7 +170,7 @@ pub async fn upload_benchmarks(
     repo: web::Data<DieselRepository>,
     MultipartForm(mut form): MultipartForm<UploadBenchmarksForm>,
 ) -> impl Responder {
-    match upload_benchmarks_service(repo.get_ref(), &user, &mut form) {
+    match upload_benchmarks_service(&mut form, &user, repo.get_ref()) {
         Ok(true) => FlashMessage::success("Бенчмарки добавлены.").send(),
         Ok(false) => FlashMessage::error("Ошибка при добавлении бенчмарков").send(),
         Err(ServiceError::Unauthorized) => {
@@ -153,6 +181,13 @@ pub async fn upload_benchmarks(
         }
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
+        }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+        }
+        Err(err) => {
+            log::error!("Failed to upload benchmarks: {err}");
+            return HttpResponse::InternalServerError().finish();
         }
     }
 
@@ -167,10 +202,10 @@ pub async fn update_benchmark_prices(
     zmq_sender: web::Data<Arc<ZmqSender>>,
 ) -> impl Responder {
     match update_benchmark_prices_service(
-        repo.get_ref(),
-        &user,
         benchmark_id.into_inner(),
-        async |msg| zmq_sender.send_json(msg).await.map_err(|_| ()),
+        &user,
+        repo.get_ref(),
+        zmq_sender.get_ref().as_ref(),
     )
     .await
     {
@@ -190,7 +225,14 @@ pub async fn update_benchmark_prices(
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк не существует").send();
         }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+        }
         Err(ServiceError::Internal) => {
+            return HttpResponse::InternalServerError().finish();
+        }
+        Err(err) => {
+            log::error!("Failed to update benchmark prices: {err}");
             return HttpResponse::InternalServerError().finish();
         }
     }
@@ -205,7 +247,7 @@ pub async fn delete_benchmark_product(
     web::Form(form): web::Form<UnassociateForm>,
 ) -> impl Responder {
     let benchmark_id = form.benchmark_id;
-    match delete_benchmark_product_service(repo.get_ref(), &user, form) {
+    match delete_benchmark_product_service(form, &user, repo.get_ref()) {
         Ok(true) => FlashMessage::success("Мэтчинг удален.").send(),
         Ok(false) => FlashMessage::error("Ошибка при удалении мэтчинга").send(),
         Err(ServiceError::Unauthorized) => {
@@ -214,7 +256,14 @@ pub async fn delete_benchmark_product(
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк или товар не существует").send();
         }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+        }
         Err(ServiceError::Internal) => {
+            return HttpResponse::InternalServerError().finish();
+        }
+        Err(err) => {
+            log::error!("Failed to remove benchmark association: {err}");
             return HttpResponse::InternalServerError().finish();
         }
     }
@@ -229,7 +278,7 @@ pub async fn create_benchmark_product(
     web::Form(form): web::Form<AssociateForm>,
 ) -> impl Responder {
     let benchmark_id = form.benchmark_id;
-    match create_benchmark_product_service(repo.get_ref(), &user, form) {
+    match create_benchmark_product_service(form, &user, repo.get_ref()) {
         Ok(true) => FlashMessage::success("Мэтчинг добавлен.").send(),
         Ok(false) => FlashMessage::error("Ошибка при добавлении мэтчинга").send(),
         Err(ServiceError::Unauthorized) => {
@@ -238,7 +287,14 @@ pub async fn create_benchmark_product(
         Err(ServiceError::NotFound) => {
             FlashMessage::error("Бенчмарк или товар не существует").send();
         }
+        Err(ServiceError::Form(message)) => {
+            FlashMessage::error(message).send();
+        }
         Err(ServiceError::Internal) => {
+            return HttpResponse::InternalServerError().finish();
+        }
+        Err(err) => {
+            log::error!("Failed to create benchmark association: {err}");
             return HttpResponse::InternalServerError().finish();
         }
     }

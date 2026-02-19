@@ -3,30 +3,32 @@ use std::collections::HashMap;
 use pushkind_common::domain::auth::AuthenticatedUser;
 use pushkind_common::pagination::{DEFAULT_ITEMS_PER_PAGE, Paginated};
 use pushkind_common::routes::check_role;
-use validator::Validate;
+use pushkind_common::zmq::ZmqSenderExt;
 
+use crate::SERVICE_ACCESS_ROLE;
 use crate::domain::zmq::{CrawlerSelector, ZMQCrawlerMessage};
 use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use crate::forms::benchmarks::{
-    AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
+    AddBenchmarkForm, AddBenchmarkFormPayload, AssociateForm, AssociateFormPayload,
+    UnassociateForm, UnassociateFormPayload, UploadBenchmarksForm, UploadBenchmarksFormPayload,
 };
 use crate::repository::{
     BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductListQuery,
     ProductReader,
 };
 
-use super::errors::{ServiceError, ServiceResult};
+use super::{ServiceError, ServiceResult};
 
 /// Core business logic for rendering the benchmarks page.
 ///
 /// Validates the `parser` role and fetches paginated benchmarks for the
 /// user's hub. Repository errors are translated into [`ServiceError`] so the
 /// HTTP route can remain a thin wrapper.
-pub fn show_benchmarks<R>(repo: &R, user: &AuthenticatedUser) -> ServiceResult<Vec<Benchmark>>
+pub fn show_benchmarks<R>(user: &AuthenticatedUser, repo: &R) -> ServiceResult<Vec<Benchmark>>
 where
     R: BenchmarkReader,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -47,9 +49,9 @@ where
 /// HTTP route remains a thin wrapper.
 #[allow(clippy::type_complexity)]
 pub fn show_benchmark<R>(
-    repo: &R,
-    user: &AuthenticatedUser,
     benchmark_id: i32,
+    user: &AuthenticatedUser,
+    repo: &R,
 ) -> ServiceResult<(
     Benchmark,
     Vec<(Crawler, Paginated<Product>)>,
@@ -58,7 +60,7 @@ pub fn show_benchmark<R>(
 where
     R: BenchmarkReader + CrawlerReader + ProductReader,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -84,7 +86,7 @@ where
         let crawler_products = match repo.list_products(
             ProductListQuery::default()
                 .benchmark(benchmark_id)
-                .crawler(crawler.id)
+                .crawler(crawler.id.get())
                 .paginate(1, DEFAULT_ITEMS_PER_PAGE),
         ) {
             Ok((total, items)) => Paginated::new(items, 1, total.div_ceil(DEFAULT_ITEMS_PER_PAGE)),
@@ -110,26 +112,38 @@ where
 /// Adds a new benchmark from the supplied form.
 ///
 /// Validates the `parser` role and the form itself before persisting the
-/// benchmark. Returns `Ok(true)` if the benchmark was created, `Ok(false)` if
-/// validation failed or the repository returned an error.
+/// benchmark. Returns `Ok(true)` if the benchmark was created,
+/// `Err(ServiceError::Form(_))` if form validation failed, and `Ok(false)` if
+/// the repository returned an error.
 pub fn add_benchmark<R>(
-    repo: &R,
-    user: &AuthenticatedUser,
     form: AddBenchmarkForm,
+    user: &AuthenticatedUser,
+    repo: &R,
 ) -> ServiceResult<bool>
 where
     R: BenchmarkWriter,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
-    if let Err(e) = form.validate() {
-        log::error!("Failed to validate form: {e}");
-        return Ok(false);
-    }
+    let payload: AddBenchmarkFormPayload = match form.try_into() {
+        Ok(payload) => payload,
+        Err(e) => {
+            log::error!("Failed to parse add benchmark form: {e}");
+            return Err(ServiceError::Form(e.to_string()));
+        }
+    };
 
-    let new_benchmark = form.into_new_benchmark(user.hub_id);
+    let hub_id = match crate::domain::types::HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
+            return Ok(false);
+        }
+    };
+
+    let new_benchmark = payload.into_new_benchmark(hub_id);
 
     match repo.create_benchmark(&[new_benchmark]) {
         Ok(_) => Ok(true),
@@ -142,27 +156,38 @@ where
 
 /// Parses and uploads multiple benchmarks.
 ///
-/// Returns `Ok(true)` if benchmarks were created successfully, `Ok(false)` if
-/// parsing failed or the repository returned an error.
+/// Returns `Ok(true)` if benchmarks were created successfully,
+/// `Err(ServiceError::Form(_))` if parsing failed, and `Ok(false)` if the
+/// repository returned an error.
 pub fn upload_benchmarks<R>(
-    repo: &R,
-    user: &AuthenticatedUser,
     form: &mut UploadBenchmarksForm,
+    user: &AuthenticatedUser,
+    repo: &R,
 ) -> ServiceResult<bool>
 where
     R: BenchmarkWriter,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmarks = match form.parse(user.hub_id) {
-        Ok(benchmarks) => benchmarks,
+    let payload: UploadBenchmarksFormPayload = match form.try_into() {
+        Ok(payload) => payload,
         Err(e) => {
-            log::error!("Failed to parse benchmarks: {e}");
+            log::error!("Failed to parse upload benchmarks form: {e}");
+            return Err(ServiceError::Form(e.to_string()));
+        }
+    };
+
+    let hub_id = match crate::domain::types::HubId::new(user.hub_id) {
+        Ok(hub_id) => hub_id,
+        Err(e) => {
+            log::error!("Invalid hub id in user context: {e}");
             return Ok(false);
         }
     };
+
+    let benchmarks = payload.into_new_benchmarks(hub_id);
 
     match repo.create_benchmark(&benchmarks) {
         Ok(_) => Ok(true),
@@ -177,17 +202,17 @@ where
 ///
 /// Returns `Ok(true)` if the message was sent successfully, `Ok(false)` if
 /// sending failed.
-pub async fn match_benchmark<R, F>(
-    repo: &R,
-    user: &AuthenticatedUser,
+pub async fn match_benchmark<R, S>(
     benchmark_id: i32,
-    send: F,
+    user: &AuthenticatedUser,
+    repo: &R,
+    sender: &S,
 ) -> ServiceResult<bool>
 where
     R: BenchmarkReader,
-    F: AsyncFn(&ZMQCrawlerMessage) -> Result<(), ()>,
+    S: ZmqSenderExt + ?Sized,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -201,7 +226,7 @@ where
     };
 
     let message = ZMQCrawlerMessage::Benchmark(benchmark.id);
-    match send(&message).await {
+    match sender.send_json(&message).await {
         Ok(_) => Ok(true),
         Err(_) => {
             log::error!("Failed to send ZMQ message");
@@ -214,17 +239,17 @@ where
 ///
 /// Returns a list of crawler selectors and whether sending the message for that
 /// crawler succeeded.
-pub async fn update_benchmark_prices<R, F>(
-    repo: &R,
-    user: &AuthenticatedUser,
+pub async fn update_benchmark_prices<R, S>(
     benchmark_id: i32,
-    send: F,
+    user: &AuthenticatedUser,
+    repo: &R,
+    sender: &S,
 ) -> ServiceResult<Vec<(String, bool)>>
 where
     R: BenchmarkReader + CrawlerReader + ProductReader,
-    F: AsyncFn(&ZMQCrawlerMessage) -> Result<(), ()>,
+    S: ZmqSenderExt + ?Sized,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -249,8 +274,8 @@ where
     for crawler in crawlers {
         let products = match repo.list_products(
             ProductListQuery::default()
-                .benchmark(benchmark.id)
-                .crawler(crawler.id),
+                .benchmark(benchmark.id.get())
+                .crawler(crawler.id.get()),
         ) {
             Ok((_total, products)) => products,
             Err(e) => {
@@ -268,11 +293,11 @@ where
             crawler.selector.clone(),
             urls,
         )));
-        let sent = send(&message).await.is_ok();
+        let sent = sender.send_json(&message).await.is_ok();
         if !sent {
             log::error!("Failed to send ZMQ message");
         }
-        results.push((crawler.selector, sent));
+        results.push((crawler.selector.into_inner(), sent));
     }
 
     Ok(results)
@@ -280,21 +305,30 @@ where
 
 /// Removes an association between a benchmark and a product.
 ///
-/// Returns `Ok(true)` if the association was removed, `Ok(false)` if the
-/// repository returned an error or entities were not found.
+/// Returns `Ok(true)` if the association was removed,
+/// `Err(ServiceError::Form(_))` if form validation failed, and `Ok(false)` if
+/// the repository returned an error or entities were not found.
 pub fn delete_benchmark_product<R>(
-    repo: &R,
-    user: &AuthenticatedUser,
     form: UnassociateForm,
+    user: &AuthenticatedUser,
+    repo: &R,
 ) -> ServiceResult<bool>
 where
     R: BenchmarkReader + ProductReader + CrawlerReader + BenchmarkWriter,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmark = match repo.get_benchmark_by_id(form.benchmark_id, user.hub_id) {
+    let payload: UnassociateFormPayload = match form.try_into() {
+        Ok(payload) => payload,
+        Err(e) => {
+            log::error!("Failed to parse unassociate form: {e}");
+            return Err(ServiceError::Form(e.to_string()));
+        }
+    };
+
+    let benchmark = match repo.get_benchmark_by_id(payload.benchmark_id.get(), user.hub_id) {
         Ok(Some(b)) => b,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -303,7 +337,7 @@ where
         }
     };
 
-    let product = match repo.get_product_by_id(form.product_id) {
+    let product = match repo.get_product_by_id(payload.product_id.get()) {
         Ok(Some(p)) => p,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -312,7 +346,7 @@ where
         }
     };
 
-    match repo.get_crawler_by_id(product.crawler_id, user.hub_id) {
+    match repo.get_crawler_by_id(product.crawler_id.get(), user.hub_id) {
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -321,7 +355,7 @@ where
         }
     };
 
-    match repo.remove_benchmark_association(benchmark.id, product.id) {
+    match repo.remove_benchmark_association(benchmark.id.get(), product.id.get()) {
         Ok(_) => Ok(true),
         Err(e) => {
             log::error!("Failed to delete association: {e}");
@@ -332,21 +366,30 @@ where
 
 /// Creates an association between a benchmark and a product.
 ///
-/// Returns `Ok(true)` if the association was created, `Ok(false)` if the
-/// repository returned an error or entities were not found.
+/// Returns `Ok(true)` if the association was created,
+/// `Err(ServiceError::Form(_))` if form validation failed, and `Ok(false)` if
+/// the repository returned an error or entities were not found.
 pub fn create_benchmark_product<R>(
-    repo: &R,
-    user: &AuthenticatedUser,
     form: AssociateForm,
+    user: &AuthenticatedUser,
+    repo: &R,
 ) -> ServiceResult<bool>
 where
     R: BenchmarkReader + ProductReader + CrawlerReader + BenchmarkWriter,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
-    let benchmark = match repo.get_benchmark_by_id(form.benchmark_id, user.hub_id) {
+    let payload: AssociateFormPayload = match form.try_into() {
+        Ok(payload) => payload,
+        Err(e) => {
+            log::error!("Failed to parse associate form: {e}");
+            return Err(ServiceError::Form(e.to_string()));
+        }
+    };
+
+    let benchmark = match repo.get_benchmark_by_id(payload.benchmark_id.get(), user.hub_id) {
         Ok(Some(b)) => b,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -355,7 +398,7 @@ where
         }
     };
 
-    let product = match repo.get_product_by_id(form.product_id) {
+    let product = match repo.get_product_by_id(payload.product_id.get()) {
         Ok(Some(p)) => p,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -364,7 +407,7 @@ where
         }
     };
 
-    match repo.get_crawler_by_id(product.crawler_id, user.hub_id) {
+    match repo.get_crawler_by_id(product.crawler_id.get(), user.hub_id) {
         Ok(Some(crawler)) => crawler,
         Ok(None) => return Err(ServiceError::NotFound),
         Err(e) => {
@@ -373,7 +416,7 @@ where
         }
     };
 
-    match repo.set_benchmark_association(benchmark.id, product.id, 1.0) {
+    match repo.set_benchmark_association(benchmark.id.get(), product.id.get(), 1.0) {
         Ok(_) => Ok(true),
         Err(e) => {
             log::error!("Failed to create benchmark association: {e}");
@@ -385,6 +428,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::types::{
+        BenchmarkId, BenchmarkName, BenchmarkSku, CategoryName, CrawlerId, CrawlerName,
+        CrawlerSelectorValue, CrawlerUrl, HubId, ProductAmount, ProductCount, ProductDescription,
+        ProductId, ProductName, ProductPrice, ProductSku, ProductUnits, ProductUrl,
+    };
     use crate::repository::test::TestRepository;
     use chrono::DateTime;
     use serde_json::Value;
@@ -395,36 +443,36 @@ mod tests {
             email: "test@example.com".into(),
             hub_id: 1,
             name: "Test".into(),
-            roles: vec!["parser".into()],
+            roles: vec![SERVICE_ACCESS_ROLE.into()],
             exp: 0,
         }
     }
 
     fn sample_crawler() -> Crawler {
         Crawler {
-            id: 1,
-            hub_id: 1,
-            name: "crawler".into(),
-            url: "http://example.com".into(),
-            selector: "body".into(),
+            id: CrawlerId::new(1).unwrap(),
+            hub_id: HubId::new(1).unwrap(),
+            name: CrawlerName::new("crawler").unwrap(),
+            url: CrawlerUrl::new("http://example.com").unwrap(),
+            selector: CrawlerSelectorValue::new("body").unwrap(),
             processing: false,
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
-            num_products: 0,
+            num_products: ProductCount::new(0).unwrap(),
         }
     }
 
     fn sample_product() -> Product {
         Product {
-            id: 1,
-            crawler_id: 1,
-            name: "product".into(),
-            sku: "SKU1".into(),
-            category: Some("cat".into()),
-            units: Some("pcs".into()),
-            price: 1.0,
+            id: ProductId::new(1).unwrap(),
+            crawler_id: CrawlerId::new(1).unwrap(),
+            name: ProductName::new("product").unwrap(),
+            sku: ProductSku::new("SKU1").unwrap(),
+            category: Some(CategoryName::new("cat").unwrap()),
+            units: Some(ProductUnits::new("pcs").unwrap()),
+            price: ProductPrice::new(1.0).unwrap(),
             amount: None,
             description: None,
-            url: "http://example.com".into(),
+            url: ProductUrl::new("http://example.com").unwrap(),
             created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: None,
@@ -434,20 +482,20 @@ mod tests {
 
     fn sample_benchmark() -> Benchmark {
         Benchmark {
-            id: 1,
-            hub_id: 1,
-            name: "benchmark".into(),
-            sku: "SKU1".into(),
-            category: "cat".into(),
-            units: "pcs".into(),
-            price: 1.0,
-            amount: 1.0,
-            description: "desc".into(),
+            id: BenchmarkId::new(1).unwrap(),
+            hub_id: HubId::new(1).unwrap(),
+            name: BenchmarkName::new("benchmark").unwrap(),
+            sku: BenchmarkSku::new("SKU1").unwrap(),
+            category: CategoryName::new("cat").unwrap(),
+            units: ProductUnits::new("pcs").unwrap(),
+            price: ProductPrice::new(1.0).unwrap(),
+            amount: ProductAmount::new(1.0).unwrap(),
+            description: ProductDescription::new("desc").unwrap(),
             created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: None,
             processing: false,
-            num_products: 0,
+            num_products: ProductCount::new(0).unwrap(),
         }
     }
 
@@ -456,7 +504,7 @@ mod tests {
         let repo = TestRepository::new(vec![], vec![], vec![sample_benchmark()]);
         let user = sample_user();
 
-        let benchmarks = show_benchmarks(&repo, &user).unwrap();
+        let benchmarks = show_benchmarks(&user, &repo).unwrap();
         assert_eq!(benchmarks.len(), 1);
     }
 
@@ -469,7 +517,7 @@ mod tests {
         );
         let user = sample_user();
 
-        let (benchmark, crawler_products, distances) = show_benchmark(&repo, &user, 1).unwrap();
+        let (benchmark, crawler_products, distances) = show_benchmark(1, &user, &repo).unwrap();
 
         assert_eq!(benchmark.id, 1);
         assert_eq!(crawler_products.len(), 1);
@@ -479,5 +527,52 @@ mod tests {
         assert_eq!(value["page"], 1);
         assert_eq!(value["items"].as_array().unwrap().len(), 1);
         assert!(distances.is_empty());
+    }
+
+    #[test]
+    fn add_benchmark_returns_form_error_for_invalid_form() {
+        let repo = TestRepository::default();
+        let user = sample_user();
+        let form = AddBenchmarkForm {
+            name: String::new(),
+            sku: "SKU1".into(),
+            category: "cat".into(),
+            units: "pcs".into(),
+            price: 1.0,
+            amount: 1.0,
+            description: "desc".into(),
+        };
+
+        let result = add_benchmark(form, &user, &repo);
+
+        assert!(matches!(result, Err(ServiceError::Form(_))));
+    }
+
+    #[test]
+    fn delete_benchmark_product_returns_form_error_for_invalid_form() {
+        let repo = TestRepository::default();
+        let user = sample_user();
+        let form = UnassociateForm {
+            benchmark_id: 0,
+            product_id: 1,
+        };
+
+        let result = delete_benchmark_product(form, &user, &repo);
+
+        assert!(matches!(result, Err(ServiceError::Form(_))));
+    }
+
+    #[test]
+    fn create_benchmark_product_returns_form_error_for_invalid_form() {
+        let repo = TestRepository::default();
+        let user = sample_user();
+        let form = AssociateForm {
+            benchmark_id: 1,
+            product_id: 0,
+        };
+
+        let result = create_benchmark_product(form, &user, &repo);
+
+        assert!(matches!(result, Err(ServiceError::Form(_))));
     }
 }

@@ -3,10 +3,11 @@ use pushkind_common::pagination::DEFAULT_ITEMS_PER_PAGE;
 use pushkind_common::routes::check_role;
 use serde::Deserialize;
 
+use crate::SERVICE_ACCESS_ROLE;
 use crate::domain::product::Product;
 use crate::repository::{CrawlerReader, ProductListQuery, ProductReader};
 
-use super::errors::{ServiceError, ServiceResult};
+use super::{ServiceError, ServiceResult};
 
 /// Query parameters accepted by the `api_v1_products` endpoint.
 #[derive(Deserialize, Debug)]
@@ -23,14 +24,14 @@ pub struct ApiV1ProductsQueryParams {
 /// role checks are handled here so that the HTTP route can remain a thin
 /// wrapper.
 pub fn api_v1_products<R>(
-    repo: &R,
     params: ApiV1ProductsQueryParams,
     user: &AuthenticatedUser,
+    repo: &R,
 ) -> ServiceResult<Vec<Product>>
 where
     R: CrawlerReader + ProductReader,
 {
-    if !check_role("parser", &user.roles) {
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
         return Err(ServiceError::Unauthorized);
     }
 
@@ -43,7 +44,7 @@ where
         Ok(None) => return Err(ServiceError::NotFound),
     };
 
-    let mut list_query = ProductListQuery::default().crawler(crawler.id);
+    let mut list_query = ProductListQuery::default().crawler(crawler.id.get());
 
     let page = params.page.unwrap_or(1);
     list_query = list_query.paginate(page, DEFAULT_ITEMS_PER_PAGE);
@@ -74,6 +75,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::types::{
+        CrawlerId, CrawlerName, CrawlerSelectorValue, CrawlerUrl, HubId, ProductCount, ProductId,
+        ProductName, ProductPrice, ProductSku, ProductUrl,
+    };
     use crate::domain::{crawler::Crawler, product::Product};
     use crate::repository::test::TestRepository;
     use chrono::DateTime;
@@ -84,36 +89,36 @@ mod tests {
             email: "test@example.com".into(),
             hub_id: 1,
             name: "Test".into(),
-            roles: vec!["parser".into()],
+            roles: vec![SERVICE_ACCESS_ROLE.into()],
             exp: 0,
         }
     }
 
     fn sample_crawler() -> Crawler {
         Crawler {
-            id: 1,
-            hub_id: 1,
-            name: "crawler".into(),
-            url: "http://example.com".into(),
-            selector: "body".into(),
+            id: CrawlerId::new(1).unwrap(),
+            hub_id: HubId::new(1).unwrap(),
+            name: CrawlerName::new("crawler").unwrap(),
+            url: CrawlerUrl::new("http://example.com").unwrap(),
+            selector: CrawlerSelectorValue::new("body").unwrap(),
             processing: false,
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
-            num_products: 0,
+            num_products: ProductCount::new(0).unwrap(),
         }
     }
 
     fn sample_product() -> Product {
         Product {
-            id: 1,
-            crawler_id: 1,
-            name: "Apple".into(),
-            sku: "SKU1".into(),
+            id: ProductId::new(1).unwrap(),
+            crawler_id: CrawlerId::new(1).unwrap(),
+            name: ProductName::new("Apple").unwrap(),
+            sku: ProductSku::new("SKU1").unwrap(),
             category: None,
             units: None,
-            price: 1.0,
+            price: ProductPrice::new(1.0).unwrap(),
             amount: None,
             description: None,
-            url: "http://example.com/apple".into(),
+            url: ProductUrl::new("http://example.com/apple").unwrap(),
             created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: Some(vec![1, 2, 3]),
@@ -131,7 +136,7 @@ mod tests {
             page: None,
         };
 
-        let result = api_v1_products(&repo, params, &user).unwrap();
+        let result = api_v1_products(params, &user, &repo).unwrap();
 
         assert_eq!(result.len(), 1);
         assert!(result[0].embedding.is_none());

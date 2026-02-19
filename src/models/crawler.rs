@@ -2,6 +2,9 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
 use crate::domain::crawler::Crawler as DomainCrawler;
+use crate::domain::types::{
+    CrawlerName, CrawlerSelectorValue, CrawlerUrl, ProductCount, TypeConstraintError,
+};
 
 /// Diesel representation of a crawler row.
 #[derive(Debug, Clone, Identifiable, Queryable)]
@@ -17,17 +20,19 @@ pub struct Crawler {
     pub num_products: i32,
 }
 
-impl From<Crawler> for DomainCrawler {
-    fn from(crawler: Crawler) -> Self {
-        DomainCrawler {
-            id: crawler.id,
-            hub_id: crawler.hub_id,
-            name: crawler.name,
-            url: crawler.url,
-            selector: crawler.selector,
+impl TryFrom<Crawler> for DomainCrawler {
+    type Error = TypeConstraintError;
+
+    fn try_from(crawler: Crawler) -> Result<Self, Self::Error> {
+        Ok(DomainCrawler {
+            id: crawler.id.try_into()?,
+            hub_id: crawler.hub_id.try_into()?,
+            name: CrawlerName::new(crawler.name)?,
+            url: CrawlerUrl::new(crawler.url)?,
+            selector: CrawlerSelectorValue::new(crawler.selector)?,
             processing: crawler.processing,
             updated_at: crawler.updated_at,
-            num_products: crawler.num_products,
-        }
+            num_products: ProductCount::new(crawler.num_products)?,
+        })
     }
 }
