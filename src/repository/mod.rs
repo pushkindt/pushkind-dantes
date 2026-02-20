@@ -15,6 +15,7 @@ use crate::domain::types::{
 pub mod benchmark;
 pub mod category;
 pub mod crawler;
+pub mod processing;
 pub mod product;
 #[cfg(test)]
 pub mod test;
@@ -131,6 +132,12 @@ pub trait CrawlerReader {
 }
 
 pub trait CrawlerWriter {}
+
+/// Read-only operations exposing processing state for a hub.
+pub trait ProcessingStateReader {
+    /// Returns true when at least one crawler or benchmark in the hub is processing.
+    fn has_active_processing(&self, hub_id: HubId) -> RepositoryResult<bool>;
+}
 
 /// Read-only operations for product entities.
 pub trait ProductReader {

@@ -45,6 +45,7 @@ Implement master category directory CRUD, product optional `category_id`, manual
 - Enforce hub-isolation in category service operations (read/write only within current user hub).
 - Add forms/services for manual product category set/clear operations with hub scoping checks.
 - Add service to enqueue category matching ZMQ command.
+- Add hub-level guard so category matching can be triggered only when all crawlers and benchmarks in the hub are idle (`processing = false`).
 - Enforce assignment lock semantics in service/repository contracts:
   - manual assignments must not be overwritten by automatic matching results.
 - Keep service-level authorization and hub scoping rules aligned with existing patterns.
@@ -54,6 +55,7 @@ Implement master category directory CRUD, product optional `category_id`, manual
 - Add routes under `src/routes/categories.rs`.
 - Register routes in `src/lib.rs`.
 - Add templates for category page/actions.
+- Hide/disable category match trigger action while hub has active crawler or benchmark processing.
 - Extend navigation component to include categories.
 - Ensure product category display prefers canonical category name.
 - Add manual assignment controls to product-facing screens.
@@ -87,9 +89,12 @@ Implement master category directory CRUD, product optional `category_id`, manual
   - Mitigation: require `hub_id` in all category repository filters and cover with tests.
 - Assignment lock drift (manual records unintentionally overwritten).
   - Mitigation: enforce source checks in update queries and verify via tests.
+- Triggering category matching during active processing causes overlapping jobs.
+  - Mitigation: gate UI and POST endpoint on hub-level `processing` checks for crawlers and benchmarks.
 
 ## 4. Exit Criteria
 
 - All acceptance criteria in `specs/features/master-category-directory.md` satisfied.
 - Quality gates pass.
+- Category matching is blocked while any crawler/benchmark in hub is processing.
 - No regressions in crawler, product, benchmark workflows.

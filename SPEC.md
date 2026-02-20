@@ -156,6 +156,7 @@ Infra integrations:
 ### FR-15 Trigger Product-to-Category Matching Job
 - `POST /categories/match-products`:
   - verifies role,
+  - verifies that no crawler and no benchmark in the current hub has `processing = true`,
   - enqueues ZeroMQ message `ProductCategoryMatch(hub_id)` for `pushkind-crawlers`.
 - Worker-side contract:
   - automatic matching must not overwrite products with `category_assignment_source = manual`.
@@ -282,6 +283,7 @@ Server middleware/features:
 - Product description text can toggle truncation on click.
 - Benchmark detail page uses selectize + `/api/v1/products` to add manual associations.
 - Categories page provides category CRUD and a trigger button for bulk product-category matching.
+- Category match trigger button is unavailable while any crawler or benchmark in the current hub is processing.
 - Product rows can be manually assigned/cleared against category directory entries and display assignment source badge.
 - This section is descriptive, not contractual: route semantics are stable, while UI markup/text/layout may change without API contract changes.
 
@@ -352,6 +354,7 @@ Observed state model from this service:
 
 Notes:
 - This service triggers work by publishing ZMQ messages; it does not mutate processing flags directly.
+- Category match trigger (`POST /categories/match-products`) is blocked while any crawler or benchmark in the same hub is processing.
 - Transition policy (`false -> true -> false`), race handling, and stuck-state remediation are external concerns (crawler/matching worker side).
 
 ## 16. Security and Trust Boundaries
