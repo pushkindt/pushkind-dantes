@@ -128,6 +128,7 @@ mod tests {
             name: ProductName::new("Apple").unwrap(),
             sku: ProductSku::new("SKU1").unwrap(),
             category: None,
+            associated_category: None,
             units: None,
             price: ProductPrice::new(1.0).unwrap(),
             amount: None,

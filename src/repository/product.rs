@@ -19,7 +19,7 @@ struct ProductCount {
     count: i64,
 }
 
-fn hydrate_canonical_categories(
+fn hydrate_associated_categories(
     conn: &mut diesel::sqlite::SqliteConnection,
     products: &mut [Product],
 ) -> RepositoryResult<()> {
@@ -48,7 +48,7 @@ fn hydrate_canonical_categories(
         let Some(name) = names.get(&category_id.get()) else {
             continue;
         };
-        product.category = Some(CategoryName::new(name.clone())?);
+        product.associated_category = Some(CategoryName::new(name.clone())?);
     }
 
     Ok(())
@@ -81,7 +81,7 @@ impl ProductReader for DieselRepository {
             .map(ImageUrl::new)
             .collect::<Result<Vec<ImageUrl>, _>>()?;
 
-        hydrate_canonical_categories(&mut conn, std::slice::from_mut(&mut product))?;
+        hydrate_associated_categories(&mut conn, std::slice::from_mut(&mut product))?;
 
         Ok(Some(product))
     }
@@ -165,7 +165,7 @@ impl ProductReader for DieselRepository {
             .map(TryInto::try_into)
             .collect::<Result<Vec<Product>, _>>()?;
 
-        hydrate_canonical_categories(&mut conn, &mut items)?;
+        hydrate_associated_categories(&mut conn, &mut items)?;
 
         if !items.is_empty() {
             let product_ids: Vec<i32> = items.iter().map(|product| product.id.get()).collect();
@@ -291,7 +291,7 @@ impl ProductReader for DieselRepository {
             .collect::<Result<Vec<Product>, _>>()?;
 
         let mut items = items;
-        hydrate_canonical_categories(&mut conn, &mut items)?;
+        hydrate_associated_categories(&mut conn, &mut items)?;
 
         let total = total_query.get_result::<ProductCount>(&mut conn)?.count as usize;
         Ok((total, items))

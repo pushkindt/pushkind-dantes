@@ -353,6 +353,7 @@ mod tests {
             name: ProductName::new("Product").unwrap(),
             sku: ProductSku::new("SKU").unwrap(),
             category: None,
+            associated_category: None,
             units: None,
             price: ProductPrice::new(1.0).unwrap(),
             amount: None,

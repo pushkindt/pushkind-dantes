@@ -13,7 +13,10 @@ pub struct Product {
     pub crawler_id: CrawlerId,
     pub name: ProductName,
     pub sku: ProductSku,
+    /// Original category extracted from source data.
     pub category: Option<CategoryName>,
+    /// Canonical category associated via `category_id`.
+    pub associated_category: Option<CategoryName>,
     pub units: Option<ProductUnits>,
     pub price: ProductPrice,
     pub amount: Option<ProductAmount>,

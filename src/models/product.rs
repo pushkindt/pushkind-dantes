@@ -54,6 +54,7 @@ impl TryFrom<Product> for DomainProduct {
             name: ProductName::new(product.name)?,
             sku: ProductSku::new(product.sku)?,
             category: product.category.map(CategoryName::new).transpose()?,
+            associated_category: None,
             units: product.units.map(ProductUnits::new).transpose()?,
             price: ProductPrice::new(product.price)?,
             amount: product.amount.map(ProductAmount::new).transpose()?,
