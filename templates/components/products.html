@@ -59,7 +59,19 @@
             {% endif %}
         </div>
         <div class="col overflow-hidden">
-            {{product.category}}
+            {% if product.category %}
+                {% if product.associated_category %}
+                    <div><small class="text-secondary">{{product.category}}</small></div>
+                {% else %}
+                    <div>{{product.category}}</div>
+                {% endif %}
+            {% endif %}
+            {% if product.associated_category %}
+                <div><span class="fw-bold">{{product.associated_category}}</span></div>
+            {% endif %}
+            {% if not product.category and not product.associated_category %}
+                -
+            {% endif %}
         </div>
         <div class="col overflow-hidden">
             <div>

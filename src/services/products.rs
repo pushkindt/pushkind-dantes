@@ -230,6 +230,7 @@ mod tests {
             name: ProductName::new("product").unwrap(),
             sku: ProductSku::new("SKU1").unwrap(),
             category: Some(CategoryName::new("category").unwrap()),
+            associated_category: None,
             units: Some(ProductUnits::new("pcs").unwrap()),
             price: ProductPrice::new(1.0).unwrap(),
             amount: None,
