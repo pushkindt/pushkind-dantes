@@ -18,6 +18,7 @@ use crate::repository::DieselRepository;
 use crate::services::ServiceError;
 use crate::services::categories::{
     add_category as add_category_service,
+    can_match_product_categories as can_match_product_categories_service,
     clear_product_category_manual as clear_product_category_service,
     delete_category as delete_category_service,
     match_product_categories as match_product_categories_service,
@@ -35,6 +36,21 @@ pub async fn show_categories(
 ) -> impl Responder {
     match show_categories_service(&user, repo.get_ref()) {
         Ok(categories) => {
+            let can_match_categories =
+                match can_match_product_categories_service(&user, repo.get_ref()) {
+                    Ok(can_match_categories) => can_match_categories,
+                    Err(ServiceError::Unauthorized) => return redirect("/na"),
+                    Err(ServiceError::NotFound) => return HttpResponse::NotFound().finish(),
+                    Err(ServiceError::Form(message)) => {
+                        FlashMessage::error(message).send();
+                        return redirect("/categories");
+                    }
+                    Err(err) => {
+                        log::error!("Failed to read category matching availability: {err}");
+                        return HttpResponse::InternalServerError().finish();
+                    }
+                };
+
             let mut context = base_context(
                 &flash_messages,
                 &user,
@@ -42,6 +58,7 @@ pub async fn show_categories(
                 &server_config.auth_service_url,
             );
             context.insert("categories", &categories);
+            context.insert("can_match_categories", &can_match_categories);
             render_template(&tera, "categories/index.html", &context)
         }
         Err(ServiceError::Unauthorized) => redirect("/na"),
@@ -262,9 +279,12 @@ pub async fn clear_product_category_manual(
 #[post("/categories/match-products")]
 pub async fn match_product_categories(
     user: AuthenticatedUser,
+    repo: web::Data<DieselRepository>,
     zmq_sender: web::Data<Arc<ZmqSender>>,
 ) -> impl Responder {
-    match match_product_categories_service(&user, zmq_sender.get_ref().as_ref()).await {
+    match match_product_categories_service(&user, repo.get_ref(), zmq_sender.get_ref().as_ref())
+        .await
+    {
         Ok(true) => FlashMessage::success("Матчинг категорий по товарам запущен.").send(),
         Ok(false) => FlashMessage::error("Не удалось запустить матчинг категорий.").send(),
         Err(ServiceError::Unauthorized) => return redirect("/na"),

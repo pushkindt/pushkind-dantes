@@ -10,7 +10,8 @@ use crate::domain::types::{
 use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use crate::repository::{
     BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, CategoryListQuery, CategoryReader,
-    CategoryWriter, CrawlerReader, ProductListQuery, ProductReader, ProductWriter,
+    CategoryWriter, CrawlerReader, ProcessingStateReader, ProductListQuery, ProductReader,
+    ProductWriter,
 };
 
 /// Simple in-memory repository used for unit tests.
@@ -70,6 +71,26 @@ impl CrawlerReader for TestRepository {
         _hub_id: HubId,
     ) -> RepositoryResult<Option<Crawler>> {
         Ok(self.crawlers.get(&id).map(Self::clone_crawler))
+    }
+}
+
+impl ProcessingStateReader for TestRepository {
+    fn has_active_processing(&self, hub_id: HubId) -> RepositoryResult<bool> {
+        let crawler_processing = self
+            .crawlers
+            .values()
+            .any(|crawler| crawler.hub_id == hub_id && crawler.processing);
+
+        if crawler_processing {
+            return Ok(true);
+        }
+
+        let benchmark_processing = self
+            .benchmarks
+            .iter()
+            .any(|benchmark| benchmark.hub_id == hub_id && benchmark.processing);
+
+        Ok(benchmark_processing)
     }
 }
 

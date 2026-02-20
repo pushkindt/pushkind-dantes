@@ -11,10 +11,27 @@ use crate::forms::categories::{
     SetProductCategoryFormPayload, UpdateCategoryFormPayload,
 };
 use crate::repository::{
-    CategoryListQuery, CategoryReader, CategoryWriter, CrawlerReader, ProductReader, ProductWriter,
+    CategoryListQuery, CategoryReader, CategoryWriter, CrawlerReader, ProcessingStateReader,
+    ProductReader, ProductWriter,
 };
 
 use super::{ServiceError, ServiceResult};
+
+const CATEGORY_MATCH_PROCESSING_MESSAGE: &str =
+    "Матчинг категорий недоступен: дождитесь завершения активной обработки парсеров и бенчмарков.";
+
+fn category_match_available_in_hub<R>(repo: &R, hub_id: HubId) -> ServiceResult<bool>
+where
+    R: ProcessingStateReader,
+{
+    match repo.has_active_processing(hub_id) {
+        Ok(has_active_processing) => Ok(!has_active_processing),
+        Err(e) => {
+            log::error!("Failed to read processing state: {e}");
+            Err(ServiceError::Internal)
+        }
+    }
+}
 
 pub fn show_categories<R>(user: &AuthenticatedUser, repo: &R) -> ServiceResult<Vec<CategoryDto>>
 where
@@ -36,6 +53,22 @@ where
             Err(ServiceError::Internal)
         }
     }
+}
+
+pub fn can_match_product_categories<R>(user: &AuthenticatedUser, repo: &R) -> ServiceResult<bool>
+where
+    R: ProcessingStateReader,
+{
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
+        return Err(ServiceError::Unauthorized);
+    }
+
+    let hub_id = HubId::new(user.hub_id).map_err(|e| {
+        log::error!("Invalid hub id in user context: {e}");
+        ServiceError::Internal
+    })?;
+
+    category_match_available_in_hub(repo, hub_id)
 }
 
 pub fn add_category<R>(
@@ -237,11 +270,13 @@ where
     }
 }
 
-pub async fn match_product_categories<S>(
+pub async fn match_product_categories<R, S>(
     user: &AuthenticatedUser,
+    repo: &R,
     sender: &S,
 ) -> ServiceResult<bool>
 where
+    R: ProcessingStateReader,
     S: ZmqSenderExt + ?Sized,
 {
     if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
@@ -252,6 +287,12 @@ where
         log::error!("Invalid hub id in user context: {e}");
         ServiceError::Internal
     })?;
+
+    if !category_match_available_in_hub(repo, hub_id)? {
+        return Err(ServiceError::Form(
+            CATEGORY_MATCH_PROCESSING_MESSAGE.to_string(),
+        ));
+    }
 
     let message = ZMQCrawlerMessage::ProductCategoryMatch(hub_id);
     match sender.send_json(&message).await {
@@ -266,17 +307,20 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::benchmark::Benchmark;
     use crate::domain::category::Category;
     use crate::domain::crawler::Crawler;
     use crate::domain::product::Product;
     use crate::domain::types::{
-        CategoryAssignmentSource, CategoryId, CategoryName, CrawlerId, CrawlerName,
-        CrawlerSelectorValue, CrawlerUrl, HubId, ProductCount, ProductId, ProductName,
-        ProductPrice, ProductSku, ProductUrl,
+        BenchmarkId, BenchmarkName, BenchmarkSku, CategoryAssignmentSource, CategoryId,
+        CategoryName, CrawlerId, CrawlerName, CrawlerSelectorValue, CrawlerUrl, HubId,
+        ProductAmount, ProductCount, ProductDescription, ProductId, ProductName, ProductPrice,
+        ProductSku, ProductUnits, ProductUrl,
     };
     use crate::forms::categories::SetProductCategoryFormPayload;
     use crate::repository::test::TestRepository;
     use chrono::DateTime;
+    use pushkind_common::zmq::{SendFuture, ZmqSenderError, ZmqSenderTrait};
 
     fn sample_user() -> AuthenticatedUser {
         AuthenticatedUser {
@@ -334,6 +378,41 @@ mod tests {
         }
     }
 
+    fn sample_benchmark() -> Benchmark {
+        Benchmark {
+            id: BenchmarkId::new(1).unwrap(),
+            hub_id: HubId::new(1).unwrap(),
+            name: BenchmarkName::new("benchmark").unwrap(),
+            sku: BenchmarkSku::new("SKU1").unwrap(),
+            category: CategoryName::new("cat").unwrap(),
+            units: ProductUnits::new("pcs").unwrap(),
+            price: ProductPrice::new(1.0).unwrap(),
+            amount: ProductAmount::new(1.0).unwrap(),
+            description: ProductDescription::new("desc").unwrap(),
+            created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
+            updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
+            embedding: None,
+            processing: false,
+            num_products: ProductCount::new(0).unwrap(),
+        }
+    }
+
+    struct NoopSender;
+
+    impl ZmqSenderTrait for NoopSender {
+        fn send_bytes<'a>(&'a self, _bytes: Vec<u8>) -> SendFuture<'a> {
+            Box::pin(async { Ok(()) })
+        }
+
+        fn try_send_bytes(&self, _bytes: Vec<u8>) -> Result<(), ZmqSenderError> {
+            Ok(())
+        }
+
+        fn send_multipart<'a>(&'a self, _frames: Vec<Vec<u8>>) -> SendFuture<'a> {
+            Box::pin(async { Ok(()) })
+        }
+    }
+
     #[test]
     fn shows_categories_for_authorized_user() {
         let repo =
@@ -369,5 +448,47 @@ mod tests {
         };
 
         assert!(set_product_category_manual(payload, &user, &repo).unwrap());
+    }
+
+    #[test]
+    fn category_match_is_available_without_active_processing() {
+        let repo = TestRepository::new(vec![sample_crawler()], vec![], vec![sample_benchmark()]);
+        let user = sample_user();
+
+        assert!(can_match_product_categories(&user, &repo).unwrap());
+    }
+
+    #[test]
+    fn category_match_is_unavailable_when_crawler_is_processing() {
+        let mut crawler = sample_crawler();
+        crawler.processing = true;
+        let repo = TestRepository::new(vec![crawler], vec![], vec![sample_benchmark()]);
+        let user = sample_user();
+
+        assert!(!can_match_product_categories(&user, &repo).unwrap());
+    }
+
+    #[test]
+    fn category_match_is_unavailable_when_benchmark_is_processing() {
+        let mut benchmark = sample_benchmark();
+        benchmark.processing = true;
+        let repo = TestRepository::new(vec![sample_crawler()], vec![], vec![benchmark]);
+        let user = sample_user();
+
+        assert!(!can_match_product_categories(&user, &repo).unwrap());
+    }
+
+    #[test]
+    fn match_product_categories_returns_form_error_when_processing_is_active() {
+        let mut benchmark = sample_benchmark();
+        benchmark.processing = true;
+        let repo = TestRepository::new(vec![sample_crawler()], vec![], vec![benchmark]);
+        let user = sample_user();
+        let sender = NoopSender;
+
+        let result = actix_web::rt::System::new()
+            .block_on(async { match_product_categories(&user, &repo, &sender).await });
+
+        assert!(matches!(result, Err(ServiceError::Form(_))));
     }
 }

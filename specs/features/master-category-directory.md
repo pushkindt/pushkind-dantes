@@ -128,6 +128,7 @@ Add an authenticated endpoint that enqueues a ZeroMQ message to crawler workers:
 
 - action: match categories for products,
 - scope: all products in requesting user hub,
+- precondition: no crawler or benchmark in requesting hub has `processing = true`,
 - behavior: worker assigns one best category per product from that hub's category directory.
 
 ### FR-06 Matching Write Semantics
@@ -216,6 +217,7 @@ Contract semantics:
 - Cross-hub category access attempts -> not found or unauthorized.
 - Invalid manual assignment target product/category -> not found or validation/form error.
 - Delete category in use -> allowed, sets `products.category_id = NULL`; affected manual assignments are reset to `automatic`.
+- Category matching trigger while any crawler/benchmark in hub is processing -> unavailable in UI and form error on POST.
 - ZMQ send failure -> non-fatal UI error (flash), no DB mutation.
 
 ## 11. Acceptance Criteria
@@ -227,6 +229,8 @@ Contract semantics:
 - Product records support zero/one canonical category reference.
 - Parser users can manually set and clear product category assignments for products in their hub.
 - Automatic matching does not overwrite manual assignments.
+- Category match trigger button is unavailable while any crawler or benchmark in current hub has `processing = true`.
+- `POST /categories/match-products` rejects requests while any crawler or benchmark in current hub has `processing = true`.
 - Triggering category match endpoint publishes the new ZMQ message successfully.
 - Unauthorized users cannot access category CRUD, manual assignment overrides, or matching action.
 - Existing crawler and benchmark flows continue to work without regression.
@@ -237,6 +241,7 @@ Contract semantics:
 - Unit tests for manual assignment forms/payloads.
 - Service tests for CRUD authorization and repository orchestration.
 - Service tests for manual set/clear assignment behavior and hub scoping checks.
+- Service tests for category match availability guard based on crawler/benchmark processing flags.
 - Service test for ZMQ dispatch of category matching command.
 - Service/repository tests verifying automatic matching updates skip manual assignments.
 - Repository tests for category CRUD and product-category FK behavior.
