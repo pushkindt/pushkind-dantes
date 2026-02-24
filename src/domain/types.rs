@@ -401,6 +401,63 @@ macro_rules! positive_f64_newtype {
     };
 }
 
+macro_rules! non_negative_f64_newtype {
+    ($name:ident, $doc:expr, $field:expr) => {
+        #[doc = $doc]
+        #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, PartialOrd)]
+        #[serde(transparent)]
+        pub struct $name(f64);
+
+        impl $name {
+            /// Constructs a finite numeric value that is zero or greater.
+            pub fn new(value: f64) -> Result<Self, TypeConstraintError> {
+                if value.is_finite() && value >= 0.0 {
+                    Ok(Self(value))
+                } else {
+                    Err(TypeConstraintError::NegativeNumber($field))
+                }
+            }
+
+            /// Returns the raw `f64` value.
+            pub const fn get(self) -> f64 {
+                self.0
+            }
+        }
+
+        impl Display for $name {
+            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+
+        impl TryFrom<f64> for $name {
+            type Error = TypeConstraintError;
+
+            fn try_from(value: f64) -> Result<Self, Self::Error> {
+                Self::new(value)
+            }
+        }
+
+        impl From<$name> for f64 {
+            fn from(value: $name) -> Self {
+                value.0
+            }
+        }
+
+        impl PartialEq<f64> for $name {
+            fn eq(&self, other: &f64) -> bool {
+                self.0 == *other
+            }
+        }
+
+        impl PartialEq<$name> for f64 {
+            fn eq(&self, other: &$name) -> bool {
+                *self == other.0
+            }
+        }
+    };
+}
+
 macro_rules! non_negative_i32_newtype {
     ($name:ident, $doc:expr, $field:expr) => {
         #[doc = $doc]
@@ -524,9 +581,9 @@ url_string_newtype!(CrawlerUrl, "Crawler URL.", "crawler url");
 url_string_newtype!(ProductUrl, "Product URL.", "product url");
 url_string_newtype!(ImageUrl, "Product image URL.", "image url");
 
-positive_f64_newtype!(
+non_negative_f64_newtype!(
     ProductPrice,
-    "Positive price value in standard currency units.",
+    "Non-negative price value in standard currency units.",
     "price"
 );
 positive_f64_newtype!(ProductAmount, "Positive product amount/quantity.", "amount");
@@ -672,6 +729,19 @@ mod tests {
         assert_eq!(
             SimilarityDistance::new(1.1).unwrap_err(),
             TypeConstraintError::InvalidSimilarityDistance
+        );
+    }
+
+    #[test]
+    fn product_price_allows_zero() {
+        assert_eq!(ProductPrice::new(0.0).unwrap().get(), 0.0);
+    }
+
+    #[test]
+    fn product_price_rejects_negative_numbers() {
+        assert_eq!(
+            ProductPrice::new(-0.01).unwrap_err(),
+            TypeConstraintError::NegativeNumber("price")
         );
     }
 }

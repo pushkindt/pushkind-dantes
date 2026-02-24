@@ -59,12 +59,24 @@
             <div class="modal-footer">
                 <form class="w-100" action="/benchmarks/upload" method="POST" enctype="multipart/form-data">
                     <div class="row">
-                        <div class="col">
-                            <input class="form-control" type="file" name="csv" accept=".csv" required>
-                            <div class="w-100"><sup><small class="text-muted">"name","sku","category","units","price","amount","description"</small></sup></div>
+                        <div class="col-md-5">
+                            <input class="form-control" type="file" name="file" accept=".csv,.xlsx" required>
+                            <div class="w-100"><sup><small class="text-muted">name,sku,category,units,price,amount,description</small></sup></div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" name="format" required>
+                                <option value="csv">csv</option>
+                                <option value="xlsx">xlsx</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select class="form-select" name="mode" required>
+                                <option value="full">полный</option>
+                                <option value="partial">частичный</option>
+                            </select>
                         </div>
                         <div class="col-auto">
-                            <button class="btn btn-success" type="submit">Из csv</button>
+                            <button class="btn btn-success" type="submit">Импорт</button>
                         </div>
                     </div>
                 </form>

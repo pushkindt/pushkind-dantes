@@ -4,8 +4,10 @@ use pushkind_common::repository::errors::RepositoryResult;
 
 use crate::domain::benchmark::NewBenchmark;
 use crate::domain::category::Category;
+use crate::domain::product::NewProduct;
 use crate::domain::types::{
-    BenchmarkId, CategoryId, CategoryName, CrawlerId, HubId, ProductId, SimilarityDistance,
+    BenchmarkId, BenchmarkSku, CategoryId, CategoryName, CrawlerId, HubId, ProductId, ProductSku,
+    SimilarityDistance,
 };
 use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
 use crate::repository::{
@@ -131,9 +133,34 @@ impl ProductReader for TestRepository {
             .find(|p| p.id == id)
             .map(Self::clone_product))
     }
+
+    fn list_products_by_crawler_and_sku(
+        &self,
+        crawler_id: CrawlerId,
+        sku: &ProductSku,
+    ) -> RepositoryResult<Vec<Product>> {
+        Ok(self
+            .products
+            .iter()
+            .filter(|p| p.crawler_id == crawler_id && p.sku == sku.as_str())
+            .map(Self::clone_product)
+            .collect())
+    }
 }
 
 impl ProductWriter for TestRepository {
+    fn create_product(&self, _product: &NewProduct) -> RepositoryResult<usize> {
+        Ok(1)
+    }
+
+    fn update_product(
+        &self,
+        _product_id: ProductId,
+        _product: &NewProduct,
+    ) -> RepositoryResult<usize> {
+        Ok(1)
+    }
+
     fn set_product_category_manual(
         &self,
         _product_id: ProductId,
@@ -169,11 +196,32 @@ impl BenchmarkReader for TestRepository {
             .find(|b| b.id == id)
             .map(Self::clone_benchmark))
     }
+
+    fn list_benchmarks_by_hub_and_sku(
+        &self,
+        hub_id: HubId,
+        sku: &BenchmarkSku,
+    ) -> RepositoryResult<Vec<Benchmark>> {
+        Ok(self
+            .benchmarks
+            .iter()
+            .filter(|b| b.hub_id == hub_id && b.sku == sku.as_str())
+            .map(Self::clone_benchmark)
+            .collect())
+    }
 }
 
 impl BenchmarkWriter for TestRepository {
     fn create_benchmark(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize> {
         Ok(benchmarks.len())
+    }
+
+    fn update_benchmark(
+        &self,
+        _benchmark_id: BenchmarkId,
+        _benchmark: &NewBenchmark,
+    ) -> RepositoryResult<usize> {
+        Ok(1)
     }
 
     fn remove_benchmark_association(

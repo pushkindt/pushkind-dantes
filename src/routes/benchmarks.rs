@@ -9,20 +9,24 @@ use pushkind_common::routes::{base_context, redirect, render_template};
 use pushkind_common::zmq::ZmqSender;
 use tera::Tera;
 
-use crate::forms::benchmarks::{
-    AddBenchmarkForm, AssociateForm, UnassociateForm, UploadBenchmarksForm,
-};
+use crate::forms::benchmarks::{AddBenchmarkForm, AssociateForm, UnassociateForm};
+use crate::forms::import_export::UploadImportForm;
 use crate::repository::DieselRepository;
 use crate::services::ServiceError;
 use crate::services::benchmarks::{
     add_benchmark as add_benchmark_service,
     create_benchmark_product as create_benchmark_product_service,
     delete_benchmark_product as delete_benchmark_product_service,
-    match_benchmark as match_benchmark_service, show_benchmark as show_benchmark_service,
-    show_benchmarks as show_benchmarks_service,
+    download_benchmarks as download_benchmarks_service, match_benchmark as match_benchmark_service,
+    show_benchmark as show_benchmark_service, show_benchmarks as show_benchmarks_service,
     update_benchmark_prices as update_benchmark_prices_service,
-    upload_benchmarks as upload_benchmarks_service,
+    upload_benchmarks_import as upload_benchmarks_import_service,
 };
+
+#[derive(serde::Deserialize)]
+pub struct DownloadQuery {
+    pub format: String,
+}
 
 #[get("/benchmarks")]
 pub async fn show_benchmarks(
@@ -167,12 +171,42 @@ pub async fn match_benchmark(
 #[post("/benchmarks/upload")]
 pub async fn upload_benchmarks(
     user: AuthenticatedUser,
+    flash_messages: IncomingFlashMessages,
     repo: web::Data<DieselRepository>,
-    MultipartForm(mut form): MultipartForm<UploadBenchmarksForm>,
+    server_config: web::Data<CommonServerConfig>,
+    tera: web::Data<Tera>,
+    MultipartForm(mut form): MultipartForm<UploadImportForm>,
 ) -> impl Responder {
-    match upload_benchmarks_service(&mut form, &user, repo.get_ref()) {
-        Ok(true) => FlashMessage::success("Бенчмарки добавлены.").send(),
-        Ok(false) => FlashMessage::error("Ошибка при добавлении бенчмарков").send(),
+    match upload_benchmarks_import_service(&mut form, &user, repo.get_ref()) {
+        Ok(report) => {
+            if report.errors.is_empty() {
+                FlashMessage::success(format!(
+                    "Загрузка завершена: создано {}, обновлено {}.",
+                    report.created, report.updated
+                ))
+                .send();
+                return redirect("/benchmarks");
+            }
+
+            let benchmarks = match show_benchmarks_service(&user, repo.get_ref()) {
+                Ok(benchmarks) => benchmarks,
+                Err(ServiceError::Unauthorized) => return redirect("/na"),
+                Err(_) => {
+                    FlashMessage::error("Не удалось загрузить список бенчмарков").send();
+                    return redirect("/benchmarks");
+                }
+            };
+
+            let mut context = base_context(
+                &flash_messages,
+                &user,
+                "benchmarks",
+                &server_config.auth_service_url,
+            );
+            context.insert("benchmarks", &benchmarks);
+            context.insert("upload_report", &report);
+            return render_template(&tera, "benchmarks/index.html", &context);
+        }
         Err(ServiceError::Unauthorized) => {
             return redirect("/na");
         }
@@ -192,6 +226,30 @@ pub async fn upload_benchmarks(
     }
 
     redirect("/benchmarks")
+}
+
+#[get("/benchmarks/download")]
+pub async fn download_benchmarks(
+    params: web::Query<DownloadQuery>,
+    user: AuthenticatedUser,
+    repo: web::Data<DieselRepository>,
+) -> impl Responder {
+    match download_benchmarks_service(&params.format, &user, repo.get_ref()) {
+        Ok(file) => HttpResponse::Ok()
+            .append_header(("Content-Type", file.content_type))
+            .append_header((
+                "Content-Disposition",
+                format!("attachment; filename=\"{}\"", file.file_name),
+            ))
+            .body(file.bytes),
+        Err(ServiceError::Unauthorized) => HttpResponse::Unauthorized().finish(),
+        Err(ServiceError::NotFound) => HttpResponse::NotFound().finish(),
+        Err(ServiceError::Form(message)) => HttpResponse::BadRequest().body(message),
+        Err(err) => {
+            log::error!("Failed to download benchmarks: {err}");
+            HttpResponse::InternalServerError().finish()
+        }
+    }
 }
 
 #[post("/benchmark/{benchmark_id}/update")]

@@ -38,8 +38,8 @@ use crate::repository::DieselRepository;
 use crate::routes::api::api_v1_products;
 #[cfg(feature = "server")]
 use crate::routes::benchmarks::{
-    add_benchmark, create_benchmark_product, delete_benchmark_product, match_benchmark,
-    show_benchmark, show_benchmarks, update_benchmark_prices, upload_benchmarks,
+    add_benchmark, create_benchmark_product, delete_benchmark_product, download_benchmarks,
+    match_benchmark, show_benchmark, show_benchmarks, update_benchmark_prices, upload_benchmarks,
 };
 #[cfg(feature = "server")]
 use crate::routes::categories::{
@@ -49,7 +49,10 @@ use crate::routes::categories::{
 #[cfg(feature = "server")]
 use crate::routes::main::index;
 #[cfg(feature = "server")]
-use crate::routes::products::{crawl_crawler, show_products, update_crawler_prices};
+use crate::routes::products::{
+    crawl_crawler, download_crawler_products, show_products, update_crawler_prices,
+    upload_crawler_products,
+};
 
 #[cfg(feature = "data")]
 pub mod domain;
@@ -130,12 +133,15 @@ pub async fn run(server_config: ServerConfig) -> std::io::Result<()> {
                     .service(show_benchmarks)
                     .service(show_benchmark)
                     .service(upload_benchmarks)
+                    .service(download_benchmarks)
                     .service(add_benchmark)
                     .service(match_benchmark)
                     .service(update_benchmark_prices)
                     .service(delete_benchmark_product)
                     .service(create_benchmark_product)
                     .service(show_products)
+                    .service(upload_crawler_products)
+                    .service(download_crawler_products)
                     .service(show_categories)
                     .service(add_category)
                     .service(update_category)

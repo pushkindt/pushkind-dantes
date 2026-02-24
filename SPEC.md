@@ -1,7 +1,7 @@
 # pushkind-dantes Specification
 
 Status: implementation-aligned specification
-Last updated: 2026-02-19
+Last updated: 2026-02-24
 Scope: reflects the code currently present in this repository (`src/`, `templates/`, `migrations/`).
 
 ## 1. Purpose
@@ -91,13 +91,23 @@ Infra integrations:
   - `name`, `sku`, `category`, `units`, `price`, `amount`, `description`.
 - Validation:
   - string fields must be non-empty,
-  - price and amount must be positive finite values.
+  - price must be a non-negative finite value; amount must be a positive finite value.
 
-### FR-08 Upload Benchmarks from CSV
-- `POST /benchmarks/upload` multipart form with `csv` file (max 10MB).
-- CSV row schema:
-  - `name,sku,category,units,price,amount,description`.
-- Each row is validated with same constraints as FR-07.
+### FR-08 Upload Benchmarks (CSV/XLSX, Full/Partial)
+- `POST /benchmarks/upload` multipart form with:
+  - `file` (max 10MB),
+  - `format` (`csv|xlsx`),
+  - `mode` (`full|partial`).
+- Header semantics:
+  - full mode requires exact benchmark headers:
+    `sku,name,category,units,price,amount,description`,
+  - partial mode requires `sku` and allows only benchmark business columns.
+- Processing semantics:
+  - upsert by `(hub_id, sku)`,
+  - duplicate sku in upload file is a row-level conflict,
+  - multiple existing benchmark rows for same `(hub_id, sku)` is a row-level conflict,
+  - valid rows are applied while invalid rows are skipped,
+  - UI renders upload summary plus row-level error details.
 
 ### FR-09 Match Benchmark (Background Job)
 - `POST /benchmark/{benchmark_id}/match`:
@@ -128,6 +138,35 @@ Infra integrations:
   - paginated list with optional full-text search,
   - strips `embedding` before JSON response.
 - Used by benchmark page selectize search dropdown (front-end limits shown results to first 20).
+
+### FR-17 Crawler Product Upload (CSV/XLSX, Full/Partial)
+- `POST /crawler/{crawler_id}/products/upload` multipart form with:
+  - `file` (max 10MB),
+  - `format` (`csv|xlsx`),
+  - `mode` (`full|partial`).
+- Header semantics:
+  - full mode requires exact crawler product headers:
+    `sku,name,category,units,price,amount,description,url`,
+  - partial mode requires `sku` and allows only crawler product business columns.
+- Processing semantics:
+  - upsert by `(crawler_id, sku)`,
+  - duplicate sku in upload file is a row-level conflict,
+  - multiple existing product rows for same `(crawler_id, sku)` is a row-level conflict,
+  - valid rows are applied while invalid rows are skipped,
+  - updates clear `products.embedding` (set to `NULL`) to invalidate stale vectors,
+  - UI renders upload summary plus row-level error details.
+
+### FR-18 Benchmarks Download
+- `GET /benchmarks/download?format={csv|xlsx}`.
+- Export columns:
+  - `sku,name,category,units,price,amount,description`.
+- Internal IDs are not exported.
+
+### FR-19 Crawler Products Download
+- `GET /crawler/{crawler_id}/products/download?format={csv|xlsx}`.
+- Export columns:
+  - `sku,name,category,units,price,amount,description,url`.
+- Internal IDs are not exported.
 
 ### FR-13 Category Directory CRUD
 - `GET /categories` lists categories for the current hub.
@@ -172,10 +211,13 @@ Infra integrations:
 - `GET /crawler/{crawler_id}` -> crawler product list.
 - `POST /crawler/{crawler_id}/crawl` -> start crawler job.
 - `POST /crawler/{crawler_id}/update` -> update crawler product prices.
+- `POST /crawler/{crawler_id}/products/upload` -> crawler product upload (CSV/XLSX, full/partial).
+- `GET /crawler/{crawler_id}/products/download` -> crawler product download.
 - `GET /benchmarks` -> benchmark list.
 - `GET /benchmark/{benchmark_id}` -> benchmark detail.
 - `POST /benchmark/add` -> add benchmark.
-- `POST /benchmarks/upload` -> CSV upload.
+- `POST /benchmarks/upload` -> benchmark upload (CSV/XLSX, full/partial).
+- `GET /benchmarks/download` -> benchmark download.
 - `POST /benchmark/{benchmark_id}/match` -> queue matching.
 - `POST /benchmark/{benchmark_id}/update` -> queue price updates.
 - `POST /benchmark/associate` -> manual match.
@@ -202,7 +244,7 @@ Core tables:
 - `crawlers`:
   - `id`, `hub_id`, `name`, `url`, `selector`, `processing`, `updated_at`, `num_products`.
 - `products`:
-  - `id`, `crawler_id`, `name`, `sku`, optional `category` (raw crawler text kept for compatibility and embedding input), optional `units`, `price`, optional `amount`, optional `description`, `url`, timestamps, optional `embedding` blob, optional `category_id`, `category_assignment_source`.
+  - `id`, `crawler_id`, `name`, `sku`, optional `category` (raw crawler text kept for compatibility and embedding input), optional `units`, `price`, optional `amount`, optional `description`, optional `url`, timestamps, optional `embedding` blob, optional `category_id`, `category_assignment_source`.
 - `benchmarks`:
   - `id`, `hub_id`, `name`, `sku`, `category`, `units`, `price`, `amount`, `description`, timestamps, optional `embedding`, `processing`, `num_products`.
 - `categories`:
@@ -216,6 +258,8 @@ Search/indexing:
 - SQLite FTS5 virtual table `products_fts` over product text columns.
 - Triggers keep FTS table synced on insert/update/delete.
 - Unique index on `(products.crawler_id, products.url)`.
+- Non-unique index on `(products.crawler_id, products.sku)`.
+- Non-unique index on `(benchmarks.hub_id, benchmarks.sku)`.
 - Case-insensitive unique index on `(categories.hub_id, lower(categories.name))`.
 - `products.category_id` has FK relation to `categories.id`.
 
@@ -228,8 +272,8 @@ Strongly typed wrappers enforce invariants:
 - IDs (`HubId`, `CrawlerId`, `ProductId`, `BenchmarkId`) > 0.
 - Text wrappers (`ProductName`, `BenchmarkSku`, etc.) are trimmed and non-empty.
 - Category path normalization trims each slash-separated path segment and rejects empty segments.
-- URL wrappers (`CrawlerUrl`, `ProductUrl`, `ImageUrl`) must pass URL validation.
-- `ProductPrice`, `ProductAmount` must be positive finite numbers.
+- URL wrappers (`CrawlerUrl`, `ProductUrl`, `ImageUrl`) must pass URL validation when values are present.
+- `ProductPrice` must be a non-negative finite number; `ProductAmount` must be a positive finite number.
 - `ProductCount` must be >= 0.
 - `SimilarityDistance` must be within `[0.0, 1.0]`.
 
@@ -246,7 +290,7 @@ Emission points:
 - Crawl crawler: `Selector`.
 - Update crawler prices: `SelectorProducts` with crawler product URLs.
 - Match benchmark: `Benchmark`.
-- Update benchmark prices: one `SelectorProducts` per crawler that has matched products.
+- Update benchmark prices: one `SelectorProducts` per crawler that has matched products with non-null URLs.
 - Match products to categories for hub: `ProductCategoryMatch`.
 - Worker rule for category matching: do not overwrite records with manual assignment source.
 
@@ -367,7 +411,7 @@ Boundary overview:
 Current safeguards:
 - Role checks (`parser`) and hub-scoped data reads.
 - Typed form validation for benchmark workflows.
-- Multipart CSV upload capped at 10MB in form definition.
+- Multipart import upload capped at 10MB in form definition.
 
 Current explicit non-guarantees in this repository:
 - No explicit CSRF token validation middleware is declared in this crate.

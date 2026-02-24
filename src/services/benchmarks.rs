@@ -8,17 +8,61 @@ use pushkind_common::zmq::ZmqSenderExt;
 use crate::SERVICE_ACCESS_ROLE;
 use crate::domain::types::{BenchmarkId, HubId, SimilarityDistance};
 use crate::domain::zmq::{CrawlerSelector, ZMQCrawlerMessage};
-use crate::domain::{benchmark::Benchmark, crawler::Crawler, product::Product};
+use crate::domain::{
+    benchmark::Benchmark, benchmark::NewBenchmark, crawler::Crawler, product::Product,
+};
 use crate::forms::benchmarks::{
     AddBenchmarkForm, AddBenchmarkFormPayload, AssociateForm, AssociateFormPayload,
     UnassociateForm, UnassociateFormPayload, UploadBenchmarksForm, UploadBenchmarksFormPayload,
 };
+use crate::forms::import_export::{UploadImportForm, UploadMode, UploadTarget, parse_upload};
 use crate::repository::{
     BenchmarkListQuery, BenchmarkReader, BenchmarkWriter, CrawlerReader, ProductListQuery,
     ProductReader,
 };
+use crate::services::import_export::{
+    DownloadFile, DownloadFormat, UploadReport, render_download_file,
+};
 
 use super::{ServiceError, ServiceResult};
+
+fn parse_f64(value: &str, field: &str) -> Result<f64, String> {
+    value
+        .parse::<f64>()
+        .map_err(|_| format!("Invalid numeric value for {field}"))
+}
+
+fn build_benchmark_from_row(
+    row: &std::collections::HashMap<String, String>,
+    hub_id: HubId,
+) -> Result<NewBenchmark, String> {
+    let name = row.get("name").cloned().unwrap_or_default();
+    let sku = row.get("sku").cloned().unwrap_or_default();
+    let category = row.get("category").cloned().unwrap_or_default();
+    let units = row.get("units").cloned().unwrap_or_default();
+    let price = parse_f64(
+        row.get("price").map(String::as_str).unwrap_or_default(),
+        "price",
+    )?;
+    let amount = parse_f64(
+        row.get("amount").map(String::as_str).unwrap_or_default(),
+        "amount",
+    )?;
+    let description = row.get("description").cloned().unwrap_or_default();
+
+    let payload = AddBenchmarkFormPayload::try_from(AddBenchmarkForm {
+        name,
+        sku,
+        category,
+        units,
+        price,
+        amount,
+        description,
+    })
+    .map_err(|err| err.to_string())?;
+
+    Ok(payload.into_new_benchmark(hub_id))
+}
 
 /// Core business logic for rendering the benchmarks page.
 ///
@@ -48,6 +92,58 @@ where
             Err(ServiceError::Internal)
         }
     }
+}
+
+pub fn download_benchmarks<R>(
+    format: &str,
+    user: &AuthenticatedUser,
+    repo: &R,
+) -> ServiceResult<DownloadFile>
+where
+    R: BenchmarkReader,
+{
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
+        return Err(ServiceError::Unauthorized);
+    }
+
+    let hub_id = HubId::new(user.hub_id).map_err(|_| ServiceError::Internal)?;
+    let format =
+        DownloadFormat::try_from(format).map_err(|err| ServiceError::Form(err.to_string()))?;
+    let benchmarks = repo
+        .list_benchmarks(BenchmarkListQuery::new(hub_id))
+        .map_err(|_| ServiceError::Internal)?
+        .1;
+
+    let rows = benchmarks
+        .into_iter()
+        .map(|b| {
+            vec![
+                b.sku.as_str().to_string(),
+                b.name.as_str().to_string(),
+                b.category.as_str().to_string(),
+                b.units.as_str().to_string(),
+                b.price.get().to_string(),
+                b.amount.get().to_string(),
+                b.description.as_str().to_string(),
+            ]
+        })
+        .collect::<Vec<_>>();
+
+    render_download_file(
+        "benchmarks",
+        format,
+        &[
+            "sku",
+            "name",
+            "category",
+            "units",
+            "price",
+            "amount",
+            "description",
+        ],
+        &rows,
+    )
+    .map_err(|err| ServiceError::Form(err.to_string()))
 }
 
 /// Core business logic for rendering a single benchmark page.
@@ -223,6 +319,166 @@ where
     }
 }
 
+/// Upload benchmarks using format/mode-aware import parser and SKU upsert semantics.
+pub fn upload_benchmarks_import<R>(
+    form: &mut UploadImportForm,
+    user: &AuthenticatedUser,
+    repo: &R,
+) -> ServiceResult<UploadReport>
+where
+    R: BenchmarkReader + BenchmarkWriter,
+{
+    if !check_role(SERVICE_ACCESS_ROLE, &user.roles) {
+        return Err(ServiceError::Unauthorized);
+    }
+
+    let hub_id = HubId::new(user.hub_id).map_err(|_| ServiceError::Internal)?;
+    let parsed = parse_upload(form, UploadTarget::Benchmarks)
+        .map_err(|err| ServiceError::Form(err.to_string()))?;
+    apply_benchmark_upload(parsed, hub_id, repo)
+}
+
+fn apply_benchmark_upload<R>(
+    parsed: crate::forms::import_export::ParsedUpload,
+    hub_id: HubId,
+    repo: &R,
+) -> ServiceResult<UploadReport>
+where
+    R: BenchmarkReader + BenchmarkWriter,
+{
+    let mut report = UploadReport::with_total(parsed.rows.len());
+    let mut seen_skus = std::collections::HashSet::new();
+
+    for row in parsed.rows {
+        let raw_sku = row.values.get("sku").cloned().unwrap_or_default();
+        let sku_value = raw_sku.trim().to_string();
+        if sku_value.is_empty() {
+            report.push_error(row.row_number, None, "Missing sku");
+            continue;
+        }
+
+        if !seen_skus.insert(sku_value.clone()) {
+            report.push_error(
+                row.row_number,
+                Some(sku_value),
+                "Duplicate sku in uploaded file",
+            );
+            continue;
+        }
+
+        let sku = match crate::domain::types::BenchmarkSku::new(sku_value.clone()) {
+            Ok(sku) => sku,
+            Err(err) => {
+                report.push_error(row.row_number, Some(sku_value), err.to_string());
+                continue;
+            }
+        };
+
+        let existing = match repo.list_benchmarks_by_hub_and_sku(hub_id, &sku) {
+            Ok(items) => items,
+            Err(err) => {
+                log::error!("Failed to lookup benchmark by sku: {err}");
+                return Err(ServiceError::Internal);
+            }
+        };
+
+        if existing.len() > 1 {
+            report.push_error(
+                row.row_number,
+                Some(sku_value),
+                "Multiple existing benchmarks found for sku",
+            );
+            continue;
+        }
+
+        let mut merged = row.values.clone();
+        if parsed.mode == UploadMode::Partial
+            && let Some(current) = existing.first()
+        {
+            merged
+                .entry("name".to_string())
+                .or_insert_with(|| current.name.as_str().to_string());
+            merged
+                .entry("category".to_string())
+                .or_insert_with(|| current.category.as_str().to_string());
+            merged
+                .entry("units".to_string())
+                .or_insert_with(|| current.units.as_str().to_string());
+            merged
+                .entry("price".to_string())
+                .or_insert_with(|| current.price.get().to_string());
+            merged
+                .entry("amount".to_string())
+                .or_insert_with(|| current.amount.get().to_string());
+            merged
+                .entry("description".to_string())
+                .or_insert_with(|| current.description.as_str().to_string());
+        }
+
+        let new_benchmark = match build_benchmark_from_row(&merged, hub_id) {
+            Ok(item) => item,
+            Err(err) => {
+                report.push_error(row.row_number, Some(sku_value), err);
+                continue;
+            }
+        };
+
+        if let Some(current) = existing.first() {
+            match repo.update_benchmark(current.id, &new_benchmark) {
+                Ok(_) => report.updated += 1,
+                Err(err) => {
+                    log::error!("Failed to update benchmark: {err}");
+                    report.push_error(
+                        row.row_number,
+                        Some(sku_value),
+                        "Failed to update benchmark",
+                    );
+                }
+            }
+            continue;
+        }
+
+        if parsed.mode == UploadMode::Partial {
+            let required = [
+                "name",
+                "category",
+                "units",
+                "price",
+                "amount",
+                "description",
+            ];
+            let has_all_required = required.iter().all(|field| {
+                merged
+                    .get(*field)
+                    .map(|value| !value.trim().is_empty())
+                    .unwrap_or(false)
+            });
+            if !has_all_required {
+                report.push_error(
+                    row.row_number,
+                    Some(sku_value),
+                    "Partial mode create requires all required fields",
+                );
+                continue;
+            }
+        }
+
+        match repo.create_benchmark(&[new_benchmark]) {
+            Ok(_) => report.created += 1,
+            Err(err) => {
+                log::error!("Failed to create benchmark: {err}");
+                report.push_error(
+                    row.row_number,
+                    Some(sku_value),
+                    "Failed to create benchmark",
+                );
+            }
+        }
+    }
+
+    Ok(report)
+}
+
 /// Sends a ZMQ message to match the specified benchmark.
 ///
 /// Returns `Ok(true)` if the message was sent successfully, `Ok(false)` if
@@ -339,7 +595,13 @@ where
             continue;
         }
 
-        let urls = products.into_iter().map(|p| p.url).collect();
+        let urls = products
+            .into_iter()
+            .filter_map(|p| p.url)
+            .collect::<Vec<_>>();
+        if urls.is_empty() {
+            continue;
+        }
         let message = ZMQCrawlerMessage::Crawler(CrawlerSelector::SelectorProducts((
             crawler.selector.clone(),
             urls,
@@ -509,9 +771,12 @@ mod tests {
         ProductCount, ProductDescription, ProductId, ProductName, ProductPrice, ProductSku,
         ProductUnits, ProductUrl,
     };
+    use crate::forms::import_export::{ParsedUpload, ParsedUploadRow, UploadFormat, UploadMode};
     use crate::repository::test::TestRepository;
     use chrono::DateTime;
+    use pushkind_common::zmq::{SendFuture, ZmqSenderError, ZmqSenderTrait};
     use serde_json::Value;
+    use std::collections::HashMap;
 
     fn sample_user() -> AuthenticatedUser {
         AuthenticatedUser {
@@ -549,7 +814,7 @@ mod tests {
             price: ProductPrice::new(1.0).unwrap(),
             amount: None,
             description: None,
-            url: ProductUrl::new("http://example.com").unwrap(),
+            url: Some(ProductUrl::new("http://example.com").unwrap()),
             created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: None,
@@ -653,5 +918,71 @@ mod tests {
         let result = create_benchmark_product(form, &user, &repo);
 
         assert!(matches!(result, Err(ServiceError::Form(_))));
+    }
+
+    #[test]
+    fn benchmark_download_csv_contains_expected_headers() {
+        let repo = TestRepository::new(vec![], vec![], vec![sample_benchmark()]);
+        let user = sample_user();
+
+        let file = download_benchmarks("csv", &user, &repo).unwrap();
+        let body = String::from_utf8(file.bytes).unwrap();
+        assert!(body.starts_with("sku,name,category,units,price,amount,description"));
+    }
+
+    #[test]
+    fn benchmark_upload_reports_db_duplicate_sku_conflict() {
+        let mut b1 = sample_benchmark();
+        b1.id = BenchmarkId::new(1).unwrap();
+        let mut b2 = sample_benchmark();
+        b2.id = BenchmarkId::new(2).unwrap();
+
+        let repo = TestRepository::new(vec![], vec![], vec![b1, b2]);
+        let parsed = ParsedUpload {
+            format: UploadFormat::Csv,
+            mode: UploadMode::Partial,
+            headers: vec!["sku".into(), "price".into()],
+            rows: vec![ParsedUploadRow {
+                row_number: 2,
+                values: HashMap::from([
+                    ("sku".into(), "SKU1".into()),
+                    ("price".into(), "10.0".into()),
+                ]),
+            }],
+        };
+
+        let report = apply_benchmark_upload(parsed, HubId::new(1).unwrap(), &repo).unwrap();
+        assert_eq!(report.skipped, 1);
+        assert_eq!(report.errors.len(), 1);
+    }
+
+    struct NoopSender;
+
+    impl ZmqSenderTrait for NoopSender {
+        fn send_bytes<'a>(&'a self, _bytes: Vec<u8>) -> SendFuture<'a> {
+            Box::pin(async { Ok(()) })
+        }
+
+        fn try_send_bytes(&self, _bytes: Vec<u8>) -> Result<(), ZmqSenderError> {
+            Ok(())
+        }
+
+        fn send_multipart<'a>(&'a self, _frames: Vec<Vec<u8>>) -> SendFuture<'a> {
+            Box::pin(async { Ok(()) })
+        }
+    }
+
+    #[actix_web::test]
+    async fn update_benchmark_prices_skips_crawlers_without_urls() {
+        let mut p = sample_product();
+        p.url = None;
+        let repo = TestRepository::new(vec![sample_crawler()], vec![p], vec![sample_benchmark()]);
+        let user = sample_user();
+        let sender = NoopSender;
+
+        let results = update_benchmark_prices(1, &user, &repo, &sender)
+            .await
+            .unwrap();
+        assert!(results.is_empty());
     }
 }

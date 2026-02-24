@@ -70,7 +70,7 @@ diesel::table! {
         price -> Double,
         amount -> Nullable<Double>,
         description -> Nullable<Text>,
-        url -> Text,
+        url -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
         embedding -> Nullable<Binary>,

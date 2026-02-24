@@ -28,12 +28,50 @@
 {% block content %}
     {% include 'components/navigation.html' %}
 
+    {% if upload_report %}
+        <div class="container bg-white border rounded my-2 p-3">
+            <h6 class="mb-2">Результат загрузки</h6>
+            <div class="text-muted mb-2">
+                строк: {{upload_report.total_rows}},
+                создано: {{upload_report.created}},
+                обновлено: {{upload_report.updated}},
+                пропущено: {{upload_report.skipped}}
+            </div>
+            {% if upload_report.errors | length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Строка</th>
+                                <th>SKU</th>
+                                <th>Ошибка</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for error in upload_report.errors %}
+                                <tr>
+                                    <td>{{error.row_number}}</td>
+                                    <td>{{error.sku | default(value="-")}}</td>
+                                    <td>{{error.message}}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
     <div class="container bg-white border rounded my-2">
         <div class="row">
             <div class="col text-center add-benchmark-container">
                 <button class="btn btn-link" type="button" data-bs-toggle="modal" data-bs-target="#benchmarkModal">
                     <i class="bi bi-plus-circle"></i>
                 </button>
+            </div>
+            <div class="col-auto d-flex align-items-center gap-2">
+                <a class="btn btn-sm btn-outline-secondary" href="/benchmarks/download?format=csv">Скачать CSV</a>
+                <a class="btn btn-sm btn-outline-secondary" href="/benchmarks/download?format=xlsx">Скачать XLSX</a>
             </div>
         </div>
         <table class="table table-hover table-sm align-middle">

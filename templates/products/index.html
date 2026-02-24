@@ -3,6 +3,40 @@
 {% block content %}
     {% include 'components/navigation.html' %}
 
+    {% if upload_report %}
+        <div class="container bg-white border rounded my-2 p-3">
+            <h6 class="mb-2">Результат загрузки</h6>
+            <div class="text-muted mb-2">
+                строк: {{upload_report.total_rows}},
+                создано: {{upload_report.created}},
+                обновлено: {{upload_report.updated}},
+                пропущено: {{upload_report.skipped}}
+            </div>
+            {% if upload_report.errors | length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Строка</th>
+                                <th>SKU</th>
+                                <th>Ошибка</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for error in upload_report.errors %}
+                                <tr>
+                                    <td>{{error.row_number}}</td>
+                                    <td>{{error.sku | default(value="-")}}</td>
+                                    <td>{{error.message}}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
     <div class="container my-2">
         <div class="row justify-content-end">
             <div class="col-auto">
@@ -28,6 +62,12 @@
                                     </button>
                                 </form>
                             </li>
+                            <li>
+                                <a class="dropdown-item" href="/crawler/{{crawler.id}}/products/download?format=csv">скачать csv</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="/crawler/{{crawler.id}}/products/download?format=xlsx">скачать xlsx</a>
+                            </li>
                         {% else %}
                             <li>
                                 <span class="dropdown-item disabled icon-link">
@@ -46,6 +86,29 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="container bg-white border rounded my-2 p-2">
+        <form class="row g-2 align-items-center" method="POST" action="/crawler/{{crawler.id}}/products/upload" enctype="multipart/form-data">
+            <div class="col-md-4">
+                <input class="form-control form-control-sm" type="file" name="file" accept=".csv,.xlsx" required>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" name="format" required>
+                    <option value="csv">csv</option>
+                    <option value="xlsx">xlsx</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select form-select-sm" name="mode" required>
+                    <option value="full">полный</option>
+                    <option value="partial">частичный</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-sm btn-success" type="submit">Импорт товаров</button>
+            </div>
+        </form>
     </div>
 
     <div class="container bg-white border rounded my-2">
