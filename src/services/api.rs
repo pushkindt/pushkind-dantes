@@ -133,7 +133,7 @@ mod tests {
             price: ProductPrice::new(1.0).unwrap(),
             amount: None,
             description: None,
-            url: ProductUrl::new("http://example.com/apple").unwrap(),
+            url: Some(ProductUrl::new("http://example.com/apple").unwrap()),
             created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: Some(vec![1, 2, 3]),

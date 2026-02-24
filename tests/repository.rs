@@ -81,3 +81,56 @@ fn delete_category_resets_linked_products_to_automatic() {
     assert_eq!(row.0, None);
     assert_eq!(row.1, CategoryAssignmentSource::Automatic.as_str());
 }
+
+#[test]
+fn migration_allows_null_product_urls() {
+    let test_db = common::TestDb::new();
+    let mut conn = test_db
+        .pool()
+        .get()
+        .expect("should acquire DB connection for setup");
+
+    diesel::insert_into(products::table)
+        .values((
+            products::crawler_id.eq(1),
+            products::name.eq("No URL Product"),
+            products::sku.eq("SKU-NULL-1"),
+            products::price.eq(99.99_f64),
+            products::url.eq::<Option<&str>>(None),
+        ))
+        .execute(&mut conn)
+        .expect("product insert with null url should succeed");
+}
+
+#[test]
+fn non_null_product_urls_remain_unique_per_crawler() {
+    let test_db = common::TestDb::new();
+    let mut conn = test_db
+        .pool()
+        .get()
+        .expect("should acquire DB connection for setup");
+
+    let url = "https://example.com/unique-product";
+    diesel::insert_into(products::table)
+        .values((
+            products::crawler_id.eq(1),
+            products::name.eq("Unique URL Product"),
+            products::sku.eq("SKU-UNIQUE-1"),
+            products::price.eq(50.0_f64),
+            products::url.eq(Some(url)),
+        ))
+        .execute(&mut conn)
+        .expect("first product insert should succeed");
+
+    let duplicate_insert = diesel::insert_into(products::table)
+        .values((
+            products::crawler_id.eq(1),
+            products::name.eq("Duplicate URL Product"),
+            products::sku.eq("SKU-UNIQUE-2"),
+            products::price.eq(60.0_f64),
+            products::url.eq(Some(url)),
+        ))
+        .execute(&mut conn);
+
+    assert!(duplicate_insert.is_err());
+}

@@ -7,9 +7,10 @@ use pushkind_common::repository::errors::RepositoryResult;
 use crate::domain::benchmark::{Benchmark, NewBenchmark};
 use crate::domain::category::{Category, NewCategory};
 use crate::domain::crawler::Crawler;
-use crate::domain::product::Product;
+use crate::domain::product::{NewProduct, Product};
 use crate::domain::types::{
-    BenchmarkId, CategoryId, CategoryName, CrawlerId, HubId, ProductId, SimilarityDistance,
+    BenchmarkId, BenchmarkSku, CategoryId, CategoryName, CrawlerId, HubId, ProductId, ProductSku,
+    SimilarityDistance,
 };
 
 pub mod benchmark;
@@ -152,9 +153,23 @@ pub trait ProductReader {
     fn search_products(&self, query: ProductListQuery) -> RepositoryResult<(usize, Vec<Product>)>;
     /// Retrieve a product by its identifier.
     fn get_product_by_id(&self, id: ProductId) -> RepositoryResult<Option<Product>>;
+    /// Retrieve products in crawler scope by SKU. Multiple rows indicate data conflict.
+    fn list_products_by_crawler_and_sku(
+        &self,
+        crawler_id: CrawlerId,
+        sku: &ProductSku,
+    ) -> RepositoryResult<Vec<Product>>;
 }
 
 pub trait ProductWriter {
+    /// Persist a new product.
+    fn create_product(&self, product: &NewProduct) -> RepositoryResult<usize>;
+    /// Update an existing product and invalidate obsolete embedding.
+    fn update_product(
+        &self,
+        product_id: ProductId,
+        product: &NewProduct,
+    ) -> RepositoryResult<usize>;
     /// Set a manual category assignment for a product.
     fn set_product_category_manual(
         &self,
@@ -207,12 +222,24 @@ pub trait BenchmarkReader {
         id: BenchmarkId,
         hub_id: HubId,
     ) -> RepositoryResult<Option<Benchmark>>;
+    /// Retrieve benchmarks in hub scope by SKU. Multiple rows indicate data conflict.
+    fn list_benchmarks_by_hub_and_sku(
+        &self,
+        hub_id: HubId,
+        sku: &BenchmarkSku,
+    ) -> RepositoryResult<Vec<Benchmark>>;
 }
 
 /// Write operations for benchmark entities and their associations.
 pub trait BenchmarkWriter {
     /// Persist new benchmark records.
     fn create_benchmark(&self, benchmarks: &[NewBenchmark]) -> RepositoryResult<usize>;
+    /// Update an existing benchmark row.
+    fn update_benchmark(
+        &self,
+        benchmark_id: BenchmarkId,
+        benchmark: &NewBenchmark,
+    ) -> RepositoryResult<usize>;
     /// Remove an association between a benchmark and a product.
     fn remove_benchmark_association(
         &self,

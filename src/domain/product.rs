@@ -21,7 +21,7 @@ pub struct Product {
     pub price: ProductPrice,
     pub amount: Option<ProductAmount>,
     pub description: Option<ProductDescription>,
-    pub url: ProductUrl,
+    pub url: Option<ProductUrl>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub embedding: Option<Vec<u8>>,
@@ -41,6 +41,6 @@ pub struct NewProduct {
     pub price: ProductPrice,
     pub amount: Option<ProductAmount>,
     pub description: Option<ProductDescription>,
-    pub url: ProductUrl,
+    pub url: Option<ProductUrl>,
     pub images: Vec<ImageUrl>,
 }

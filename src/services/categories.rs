@@ -358,7 +358,7 @@ mod tests {
             price: ProductPrice::new(1.0).unwrap(),
             amount: None,
             description: None,
-            url: ProductUrl::new("http://example.com/p").unwrap(),
+            url: Some(ProductUrl::new("http://example.com/p").unwrap()),
             created_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             updated_at: DateTime::from_timestamp(0, 0).unwrap().naive_utc(),
             embedding: None,

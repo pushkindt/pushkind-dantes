@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 
+use chrono::Utc;
 use diesel::prelude::*;
 use diesel::sql_types::{BigInt, Integer, Text};
 use pushkind_common::repository::errors::RepositoryResult;
 
-use crate::domain::product::Product;
+use crate::domain::product::{NewProduct, Product};
 use crate::domain::types::{
     BenchmarkId, CategoryAssignmentSource, CategoryId, CategoryName, ImageUrl, ProductId,
-    SimilarityDistance,
+    ProductSku, SimilarityDistance,
 };
-use crate::models::product::Product as DbProduct;
+use crate::models::product::{NewProduct as DbNewProduct, Product as DbProduct};
 use crate::repository::{DieselRepository, ProductListQuery, ProductReader, ProductWriter};
 
 /// Helper struct used to capture the result of a `COUNT(*)` query.
@@ -84,6 +85,26 @@ impl ProductReader for DieselRepository {
         hydrate_associated_categories(&mut conn, std::slice::from_mut(&mut product))?;
 
         Ok(Some(product))
+    }
+
+    fn list_products_by_crawler_and_sku(
+        &self,
+        crawler_id: crate::domain::types::CrawlerId,
+        sku: &ProductSku,
+    ) -> RepositoryResult<Vec<Product>> {
+        use crate::schema::products;
+
+        let mut conn = self.conn()?;
+        let mut items = products::table
+            .filter(products::crawler_id.eq(crawler_id.get()))
+            .filter(products::sku.eq(sku.as_str()))
+            .load::<DbProduct>(&mut conn)?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect::<Result<Vec<Product>, _>>()?;
+
+        hydrate_associated_categories(&mut conn, &mut items)?;
+        Ok(items)
     }
 
     fn list_distances(
@@ -298,6 +319,48 @@ impl ProductReader for DieselRepository {
     }
 }
 impl ProductWriter for DieselRepository {
+    fn create_product(&self, product: &NewProduct) -> RepositoryResult<usize> {
+        use crate::schema::products;
+
+        let mut conn = self.conn()?;
+        let db_product = DbNewProduct::from(product);
+
+        let affected = diesel::insert_into(products::table)
+            .values(&db_product)
+            .execute(&mut conn)?;
+
+        Ok(affected)
+    }
+
+    fn update_product(
+        &self,
+        product_id: ProductId,
+        product: &NewProduct,
+    ) -> RepositoryResult<usize> {
+        use crate::schema::products;
+
+        let mut conn = self.conn()?;
+        let db_product = DbNewProduct::from(product);
+        let now = Utc::now().naive_utc();
+
+        let affected = diesel::update(products::table.filter(products::id.eq(product_id.get())))
+            .set((
+                products::name.eq(db_product.name),
+                products::sku.eq(db_product.sku),
+                products::category.eq(db_product.category),
+                products::units.eq(db_product.units),
+                products::price.eq(db_product.price),
+                products::amount.eq(db_product.amount),
+                products::description.eq(db_product.description),
+                products::url.eq(db_product.url),
+                products::embedding.eq::<Option<Vec<u8>>>(None),
+                products::updated_at.eq(now),
+            ))
+            .execute(&mut conn)?;
+
+        Ok(affected)
+    }
+
     fn set_product_category_manual(
         &self,
         product_id: ProductId,

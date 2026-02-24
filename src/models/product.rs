@@ -21,7 +21,7 @@ pub struct Product {
     pub price: f64,
     pub amount: Option<f64>,
     pub description: Option<String>,
-    pub url: String,
+    pub url: Option<String>,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub embedding: Option<Vec<u8>>,
@@ -41,7 +41,7 @@ pub struct NewProduct {
     pub price: f64,
     pub amount: Option<f64>,
     pub description: Option<String>,
-    pub url: String,
+    pub url: Option<String>,
 }
 
 impl TryFrom<Product> for DomainProduct {
@@ -62,7 +62,7 @@ impl TryFrom<Product> for DomainProduct {
                 .description
                 .map(ProductDescription::new)
                 .transpose()?,
-            url: ProductUrl::new(product.url)?,
+            url: product.url.map(ProductUrl::new).transpose()?,
             created_at: product.created_at,
             updated_at: product.updated_at,
             embedding: product.embedding,
@@ -75,18 +75,33 @@ impl TryFrom<Product> for DomainProduct {
     }
 }
 
-impl From<DomainNewProduct> for NewProduct {
-    fn from(product: DomainNewProduct) -> Self {
+impl From<&DomainNewProduct> for NewProduct {
+    fn from(product: &DomainNewProduct) -> Self {
         Self {
             crawler_id: product.crawler_id.get(),
-            name: product.name.into_inner(),
-            sku: product.sku.into_inner(),
-            category: product.category.map(Into::into),
-            units: product.units.map(Into::into),
+            name: product.name.as_str().to_string(),
+            sku: product.sku.as_str().to_string(),
+            category: product
+                .category
+                .as_ref()
+                .map(|value| value.as_str().to_string()),
+            units: product
+                .units
+                .as_ref()
+                .map(|value| value.as_str().to_string()),
             price: product.price.get(),
             amount: product.amount.map(ProductAmount::get),
-            description: product.description.map(Into::into),
-            url: product.url.into_inner(),
+            description: product
+                .description
+                .as_ref()
+                .map(|value| value.as_str().to_string()),
+            url: product.url.as_ref().map(|value| value.as_str().to_string()),
         }
+    }
+}
+
+impl From<DomainNewProduct> for NewProduct {
+    fn from(product: DomainNewProduct) -> Self {
+        Self::from(&product)
     }
 }
