@@ -90,8 +90,10 @@ pub fn render_download_file(
                 .write_record(headers)
                 .map_err(|_| DownloadError::CsvRender)?;
             for row in rows {
+                let escaped_row: Vec<String> =
+                    row.iter().map(|value| escape_csv_cell(value)).collect();
                 writer
-                    .write_record(row)
+                    .write_record(&escaped_row)
                     .map_err(|_| DownloadError::CsvRender)?;
             }
             let bytes = writer.into_inner().map_err(|_| DownloadError::CsvRender)?;
@@ -129,5 +131,51 @@ pub fn render_download_file(
                 bytes,
             })
         }
+    }
+}
+
+fn escape_csv_cell(value: &str) -> String {
+    let mut chars = value.chars();
+    match chars.next() {
+        Some('=' | '+' | '-' | '@') => format!("'{value}"),
+        _ => value.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DownloadFormat, render_download_file};
+
+    #[test]
+    fn csv_export_escapes_formula_prefixed_cells() {
+        let file = render_download_file(
+            "products",
+            DownloadFormat::Csv,
+            &["sku", "url"],
+            &[vec!["=SUM(A1:A2)".to_string(), "+malicious".to_string()]],
+        )
+        .expect("csv render should succeed");
+
+        let csv_output = String::from_utf8(file.bytes).expect("csv output should be utf-8");
+        assert!(csv_output.contains("'=SUM(A1:A2)"));
+        assert!(csv_output.contains("'+malicious"));
+    }
+
+    #[test]
+    fn csv_export_keeps_safe_cells_unchanged() {
+        let file = render_download_file(
+            "products",
+            DownloadFormat::Csv,
+            &["sku", "url"],
+            &[vec![
+                "SKU-123".to_string(),
+                "https://example.com".to_string(),
+            ]],
+        )
+        .expect("csv render should succeed");
+
+        let csv_output = String::from_utf8(file.bytes).expect("csv output should be utf-8");
+        assert!(csv_output.contains("SKU-123"));
+        assert!(csv_output.contains("https://example.com"));
     }
 }
