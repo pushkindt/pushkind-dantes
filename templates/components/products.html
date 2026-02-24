@@ -119,7 +119,13 @@
                     <button type="submit" class="btn btn-sm btn-outline-secondary">Сбросить</button>
                 </form>
                 <span class="badge text-bg-light border ms-1">
-                    {{ product.category_assignment_source }}
+                    {% if product.category_assignment_source == "manual" %}
+                        вручную
+                    {% elif product.category_assignment_source == "automatic" %}
+                        автоматически
+                    {% else %}
+                        {{ product.category_assignment_source }}
+                    {% endif %}
                 </span>
             </div>
         {% endif %}

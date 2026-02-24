@@ -91,7 +91,7 @@ Infra integrations:
   - `name`, `sku`, `category`, `units`, `price`, `amount`, `description`.
 - Validation:
   - string fields must be non-empty,
-  - price and amount must be positive finite values.
+  - price must be a non-negative finite value; amount must be a positive finite value.
 
 ### FR-08 Upload Benchmarks (CSV/XLSX, Full/Partial)
 - `POST /benchmarks/upload` multipart form with:
@@ -273,7 +273,7 @@ Strongly typed wrappers enforce invariants:
 - Text wrappers (`ProductName`, `BenchmarkSku`, etc.) are trimmed and non-empty.
 - Category path normalization trims each slash-separated path segment and rejects empty segments.
 - URL wrappers (`CrawlerUrl`, `ProductUrl`, `ImageUrl`) must pass URL validation when values are present.
-- `ProductPrice`, `ProductAmount` must be positive finite numbers.
+- `ProductPrice` must be a non-negative finite number; `ProductAmount` must be a positive finite number.
 - `ProductCount` must be >= 0.
 - `SimilarityDistance` must be within `[0.0, 1.0]`.
 
